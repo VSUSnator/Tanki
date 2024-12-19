@@ -4,15 +4,21 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Tanki.Tanks;
+using Tanki.Map;
+using Tanki;
 
 namespace Tanki
-{ 
-    public class Program
+{
+    namespace Tanki
     {
-        static void Main()
+        public class Program
         {
-            var gameLogic = new Game();
-            var lastFrameTime = DateTime.Now;
+            static void Main()
+            {
+                var gameLogic = new Game();
+                gameLogic.Start();
+            }
         }
     }
+
 }

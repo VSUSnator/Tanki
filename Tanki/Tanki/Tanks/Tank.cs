@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Tanki.Tanks;
+using Tanki.Map;
+using Tanki;
 
 namespace Tanki.Tanks
 {
@@ -10,17 +13,17 @@ namespace Tanki.Tanks
     {
         public int X { get; set; }
         public int Y { get; set; }
-        public Direction Direction { get; set; }
+        public Direction Direction { get; set; } // Текущее направление танка
 
-        public void Move(Direction direction)
+        public Tank()
         {
-            // Логика движения
+            Direction = Direction.North; // По умолчанию направлен на север
         }
 
-        public void Shoot()
+        public void Shoot(List<Bullet> bullets)
         {
-            // Логика стрельбы
+            Bullet bullet = new Bullet(this.X, this.Y, this.Direction); // Используем Direction
+            bullets.Add(bullet); // Добавляем снаряд в список
         }
-
     }
 }
