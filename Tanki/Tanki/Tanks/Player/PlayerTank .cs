@@ -1,19 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Tanki.Tanks;
 using Tanki.Map;
-using Tanki;
 
 namespace Tanki.Tanks.Player
 {
     public class PlayerTank : Tank
     {
-        public PlayerTank(int x, int y, Direction direction) : base(x, y, direction) { }
+        private int shotCooldown; // Время между выстрелами
+        private GameMap gameMap;
 
-        public override void Shoot(List<Bullet> bullets, int cooldown)
+        public PlayerTank(int x, int y, Direction direction, int shotCooldown = 5, GameMap? map = null)
+            : base(x, y, direction)
+        {
+            this.shotCooldown = shotCooldown;
+            gameMap = map; // Теперь map может быть null
+        }
+
+        public override void Shoot(List<Bullet> bullets, int currentTime)
+        {
+            if (!state.IsAlive) return; // Если танк мёртв, не стрелять
+
+            // Проверяем, истек ли cooldown
+            if (currentTime % shotCooldown == 0) // Стреляем, если cooldown истек
+            {
+                CreateBullet(bullets);
+            }
+        }
+
+        private void CreateBullet(List<Bullet> bullets)
         {
             int bulletX = X;
             int bulletY = Y;
@@ -34,8 +49,12 @@ namespace Tanki.Tanks.Player
                     break;
             }
 
-            // Создаем новый снаряд с заданным cooldown
-            bullets.Add(new Bullet(bulletX, bulletY, Direction, cooldown));
+            // Проверка границ карты перед добавлением снаряда
+            if (gameMap != null && bulletX >= 0 && bulletX < Game.MapWidth && bulletY >= 0 && bulletY < Game.MapHeight)
+            {
+                // Создаем новый снаряд с заданным cooldown
+                bullets.Add(new Bullet(bulletX, bulletY, Direction, gameMap, shotCooldown));
+            }
         }
     }
 }

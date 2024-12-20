@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using Tanki.Tanks;
 using Tanki.Map;
+using Tanki.Tanks;
 using Tanki.Tanks.Enemy;
 using Tanki.Tanks.Player;
 
@@ -11,143 +11,135 @@ namespace Tanki
     {
         private PlayerTank mainPlayerTank;
         private List<EnemyTank> enemyTanks;
-        private TankMovement tankController;
         private Renderer renderer;
         private List<Bullet> bullets = new List<Bullet>();
         public static int MapWidth { get; private set; } = 50;
         public static int MapHeight { get; private set; } = 24;
         private GameMap gameMap;
+        private TankMovement tankMovement;
+        private InputHandler inputHandler; // Добавляем InputHandler
         private int frameCount = 0;
+        private const int FrameRenderRate = 4;
+        private const int FrameDelay = 100;
 
         public Game()
         {
-            mainPlayerTank = new PlayerTank(MapWidth / 2, MapHeight / 2, Direction.Up);
+            gameMap = new GameMap(MapWidth, MapHeight);
+            mainPlayerTank = new PlayerTank(MapWidth / 8, MapHeight / 7, Direction.Up);
             enemyTanks = new List<EnemyTank>
             {
-                new EnemyTank(MapWidth / 4, MapHeight / 4, Direction.Right),
-                new EnemyTank(MapWidth / 3, MapHeight / 3, Direction.Left)
+                new EnemyTank(MapWidth / 10, MapHeight / 4, Direction.Right, gameMap),
+                new EnemyTank(MapWidth / 3, MapHeight / 3, Direction.Left, gameMap)
             };
-            tankController = new TankMovement(mainPlayerTank, MapWidth, MapHeight);
             renderer = new Renderer(MapWidth, MapHeight);
-            gameMap = new GameMap(MapWidth, MapHeight);
+            tankMovement = new TankMovement(mainPlayerTank, gameMap);
+            inputHandler = new InputHandler(mainPlayerTank, tankMovement); // Инициализируем InputHandler
+
+            // Подписываемся на событие OnShoot
+            inputHandler.OnShoot += mainPlayerTank.Shoot;
         }
 
         public void Start()
         {
+            DateTime lastFrameTime = DateTime.Now;
+
             while (true)
             {
                 UpdateGameState();
 
-                // Обновляем каждые 5 кадров
-                if (frameCount % 4 == 0)
+                if (frameCount % FrameRenderRate == 0)
                 {
                     RenderGame();
                 }
 
                 frameCount++;
-                System.Threading.Thread.Sleep(100); // Пауза между кадрами
-
-                // Добавляем возможность выхода из игры
-                if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.Escape)
-                {
-                    break; // Выход из игры по нажатию Escape
-                }
+                MaintainFrameRate(lastFrameTime);
+                lastFrameTime = DateTime.Now;
             }
         }
 
         private void UpdateGameState()
         {
-            if (tankController == null)
-            {
-                throw new InvalidOperationException("tankController не инициализирован.");
-            }
+            inputHandler.ProcessInput(bullets, frameCount); // Передаем снаряды и кадры для стрельбы
 
-            if (Console.KeyAvailable)
-            {
-                var key = Console.ReadKey(true).Key;
-                UpdateTankDirection(mainPlayerTank, key);
-
-                switch (key)
-                {
-                    case ConsoleKey.UpArrow:
-                        tankController.Move(Direction.North);
-                        break;
-                    case ConsoleKey.DownArrow:
-                        tankController.Move(Direction.South);
-                        break;
-                    case ConsoleKey.LeftArrow:
-                        tankController.Move(Direction.West);
-                        break;
-                    case ConsoleKey.RightArrow:
-                        tankController.Move(Direction.East);
-                        break;
-                    case ConsoleKey.Spacebar:
-                        mainPlayerTank.Shoot(bullets, 5); // Указываем cooldown
-                        break;
-                }
-            }
-
-            // Обновляем врагов
             foreach (var enemy in enemyTanks)
             {
                 enemy.Update(bullets);
             }
 
-            // Обновляем снаряды
-            for (int i = bullets.Count - 1; i >= 0; i--)
-            {
-                var bullet = bullets[i];
-                bullet.UpdateBullet();
+            UpdateBullets();
+        }
 
-                // Проверяем, попал ли снаряд в врага
-                for (int j = enemyTanks.Count - 1; j >= 0; j--)
+        private void UpdateBullets()
+        {
+            bullets.RemoveAll(b => !b.UpdateBullet(OnBulletHit) || !IsBulletInBounds(b));
+
+            var bulletsToRemove = new HashSet<int>();
+            var enemiesToRemove = new HashSet<int>();
+
+            for (int i = 0; i < bullets.Count; i++)
+            {
+                for (int j = 0; j < enemyTanks.Count; j++)
                 {
-                    var enemy = enemyTanks[j];
-                    if (bullet.BulletX == enemy.X && bullet.BulletY == enemy.Y)
+                    if (bullets[i].BulletX == enemyTanks[j].X && bullets[i].BulletY == enemyTanks[j].Y)
                     {
-                        // Удаляем врага из списка
-                        enemyTanks.Remove(enemy);
-                        bullets.RemoveAt(i); // Удаляем снаряд после попадания
-                        break; // Выходим из цикла после попадания
+                        enemiesToRemove.Add(j);
+                        bulletsToRemove.Add(i);
+                        break;
                     }
                 }
+            }
 
-                if (bullet.BulletX < 0 || bullet.BulletX >= MapWidth || bullet.BulletY < 0 || bullet.BulletY >= MapHeight)
+            foreach (var index in enemiesToRemove)
+            {
+                enemyTanks.RemoveAt(index);
+            }
+
+            foreach (var index in bulletsToRemove)
+            {
+                bullets.RemoveAt(index);
+            }
+        }
+
+        // Метод, который будет вызываться при попадании снаряда
+        private void OnBulletHit(int x, int y)
+        {
+            // Здесь можно добавить логику обработки попадания, например, удаления врага
+            for (int i = 0; i < enemyTanks.Count; i++)
+            {
+                if (enemyTanks[i].X == x && enemyTanks[i].Y == y)
                 {
-                    bullets.RemoveAt(i); // Удаляем, если снаряд вышел за пределы карты
+                    enemyTanks.RemoveAt(i);
+                    break; // Выход, если враг найден и удален
                 }
             }
         }
 
-        public void UpdateTankDirection(Tank playerTank, ConsoleKey key)
+        private bool IsBulletInBounds(Bullet bullet)
         {
-            switch (key)
-            {
-                case ConsoleKey.UpArrow:
-                    playerTank.Direction = Direction.Up;
-                    break;
-                case ConsoleKey.DownArrow:
-                    playerTank.Direction = Direction.Down;
-                    break;
-                case ConsoleKey.LeftArrow:
-                    playerTank.Direction = Direction.Left;
-                    break;
-                case ConsoleKey.RightArrow:
-                    playerTank.Direction = Direction.Right;
-                    break;
-            }
+            return bullet.BulletX >= 0 && bullet.BulletX < MapWidth &&
+                   bullet.BulletY >= 0 && bullet.BulletY < MapHeight;
         }
 
         private void RenderGame()
         {
             Console.SetCursorPosition(0, 0);
-            gameMap.Render(); // Отображаем карту
-            renderer.Render(mainPlayerTank, bullets); // Отображаем основной танк и снаряды
+            gameMap.Render();
+            renderer.Render(mainPlayerTank, bullets);
 
-            // Отображаем врагов
             foreach (var enemy in enemyTanks)
             {
-                renderer.RenderEnemyTank(enemy); // Рендеринг врага
+                renderer.RenderEnemyTank(enemy);
+            }
+        }
+
+        private void MaintainFrameRate(DateTime lastFrameTime)
+        {
+            TimeSpan elapsedTime = DateTime.Now - lastFrameTime;
+
+            if (elapsedTime.TotalMilliseconds < FrameDelay)
+            {
+                System.Threading.Thread.Sleep(FrameDelay - (int)elapsedTime.TotalMilliseconds);
             }
         }
     }

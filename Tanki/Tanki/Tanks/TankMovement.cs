@@ -1,50 +1,49 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Tanki.Tanks;
-using Tanki.Map;
-using Tanki;
+﻿using Tanki.Map;
 
 namespace Tanki.Tanks
 {
     public class TankMovement
     {
-        private Tank tank;
-        private int mapWidth;
-        private int mapHeight;
+        private readonly Tank tank;
+        private readonly GameMap gameMap;
 
-        public TankMovement(Tank tank, int mapWidth, int mapHeight)
+        public TankMovement(Tank tank, GameMap gameMap)
         {
             this.tank = tank;
-            this.mapWidth = mapWidth;
-            this.mapHeight = mapHeight;
+            this.gameMap = gameMap;
         }
 
         public void Move(Direction direction)
         {
+            int newX = tank.X;
+            int newY = tank.Y;
+
             switch (direction)
             {
                 case Direction.North:
                 case Direction.Up:
-                    if (tank.Y > 0) tank.Y--;
+                    newY--; // Уменьшаем Y для движения вверх
                     break;
                 case Direction.South:
                 case Direction.Down:
-                    if (tank.Y < mapHeight - 1) tank.Y++;
+                    newY++; // Увеличиваем Y для движения вниз
                     break;
                 case Direction.East:
                 case Direction.Right:
-                    if (tank.X < mapWidth - 1) tank.X++;
+                    newX++; // Увеличиваем X для движения вправо
                     break;
                 case Direction.West:
                 case Direction.Left:
-                    if (tank.X > 0) tank.X--;
+                    newX--; // Уменьшаем X для движения влево
                     break;
+            }
+
+            // Проверяем возможность движения перед изменением позиции
+            if (gameMap.CanMoveTo(newX, newY))
+            {
+                tank.X = newX;
+                tank.Y = newY;
             }
         }
     }
 }
-
-

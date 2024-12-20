@@ -1,28 +1,46 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Tanki.Tanks;
 using Tanki.Map;
-using Tanki;
 
 namespace Tanki.Tanks
 {
-    public abstract class Tank
+    public abstract class Tank : ITank
     {
-        public int X { get; set; }
-        public int Y { get; set; }
-        public Direction Direction { get; set; }
-        public Tank(int x, int y, Direction direction)
+        protected TankState state;
+
+        public int X
         {
-            X = x;
-            Y = y;
-            Direction = direction;
+            get => state.X;
+            set
+            {
+                if (value >= 0 && value < Game.MapWidth) state.X = value;
+            }
+        }
+
+        public int Y
+        {
+            get => state.Y;
+            set
+            {
+                if (value >= 0 && value < Game.MapHeight) state.Y = value;
+            }
+        }
+
+        public Direction Direction
+        {
+            get => state.Direction;
+            set => state.Direction = value;
+        }
+
+        protected Tank(int x, int y, Direction direction)
+        {
+            state = new TankState(x, y, direction);
         }
 
         public void Move(Direction direction)
         {
+            if (!state.IsAlive) return; // Если танк мёртв, не двигаться
+
             switch (direction)
             {
                 case Direction.North:
@@ -42,8 +60,23 @@ namespace Tanki.Tanks
                     if (X > 0) X--;
                     break;
             }
+
+            Direction = direction; // Обновляем направление после движения
         }
 
-        public abstract void Shoot(List<Bullet> bullets, int cooldown); // Абстрактный метод для стрельбы
+        public event Action<List<Bullet>, int> OnShoot;
+
+        public virtual void Shoot(List<Bullet> bullets, int cooldown)
+        {
+            if (!state.IsAlive) return; // Если танк мёртв, не стрелять
+
+            OnShoot?.Invoke(bullets, cooldown);
+        }
+
+        protected void Die()
+        {
+            state.IsAlive = false; // Устанавливаем флаг мёртвого танка
+            Console.WriteLine($"Tank at ({X}, {Y}) has been destroyed.");
+        }
     }
 }
