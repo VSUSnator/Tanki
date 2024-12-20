@@ -13,32 +13,45 @@ namespace Tanki.Tanks
     {
         public int BulletX { get; set; }
         public int BulletY { get; set; }
-        public Direction Direction { get; set; } // Используем Direction из перечисления
+        public Direction Direction { get; set; }
+        private int updateCooldown; // Количество кадров между обновлениями
+        private int updateTimer; // Таймер обновления
 
-        // Конструктор для инициализации снаряда
-        public Bullet(int x, int y, Direction direction)
+        public Bullet(int x, int y, Direction direction, int cooldown = 5) // Добавляем параметр cooldown
         {
             BulletX = x;
             BulletY = y;
             Direction = direction;
+            updateCooldown = cooldown; // Устанавливаем значение cooldown
+            updateTimer = 0; // Инициализируем таймер
         }
 
         public void UpdateBullet()
         {
-            switch (Direction)
+            updateTimer++;
+
+            if (updateTimer >= updateCooldown) // Проверяем, нужно ли обновить позицию
             {
-                case Direction.North:
-                    BulletY--; // Двигаем снаряд вверх
-                    break;
-                case Direction.South:
-                    BulletY++; // Двигаем снаряд вниз
-                    break;
-                case Direction.East:
-                    BulletX++; // Двигаем снаряд вправо
-                    break;
-                case Direction.West:
-                    BulletX--; // Двигаем снаряд влево
-                    break;
+                switch (Direction)
+                {
+                    case Direction.North:
+                    case Direction.Up:
+                        BulletY--; // Двигаем снаряд вверх
+                        break;
+                    case Direction.South:
+                    case Direction.Down:
+                        BulletY++; // Двигаем снаряд вниз
+                        break;
+                    case Direction.East:
+                    case Direction.Right:
+                        BulletX++; // Двигаем снаряд вправо
+                        break;
+                    case Direction.West:
+                    case Direction.Left:
+                        BulletX--; // Двигаем снаряд влево
+                        break;
+                }
+                updateTimer = 0; // Сбрасываем таймер
             }
         }
     }

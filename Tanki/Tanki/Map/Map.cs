@@ -13,8 +13,10 @@ namespace Tanki.Map
     {
         private char[,] cells;
 
-        public GameMap()
+
+        public GameMap(int width, int height)
         {
+            cells = new char[height, width];
             InitializeMap();
         }
 
@@ -60,7 +62,7 @@ namespace Tanki.Map
             {
                 for (int x = 0; x < cells.GetLength(1); x++)
                 {
-                    cells[y, x] = mapData[y][x]; // Заполняем массив данными из строки
+                    cells[y, x] = ' '; // Заполняем пробелами
                 }
             }
         }
@@ -69,15 +71,18 @@ namespace Tanki.Map
         {
             if (clear)
             {
-                Console.Clear(); // Очистка консоли перед отрисовкой
+                Console.Clear();
             }
 
             for (int y = 0; y < cells.GetLength(0); y++)
             {
                 for (int x = 0; x < cells.GetLength(1); x++)
                 {
-                    Console.SetCursorPosition(x, y); // Устанавливаем курсор в позицию (x, y)
-                    Console.Write(cells[y, x]); // Отрисовываем ячейку карты
+                    if (x >= 0 && x < cells.GetLength(1) && y >= 0 && y < cells.GetLength(0))
+                    {
+                        Console.SetCursorPosition(x, y);
+                        Console.Write(cells[y, x]);
+                    }
                 }
             }
         }

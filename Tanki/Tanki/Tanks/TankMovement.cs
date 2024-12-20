@@ -27,15 +27,19 @@ namespace Tanki.Tanks
             switch (direction)
             {
                 case Direction.North:
+                case Direction.Up:
                     if (tank.Y > 0) tank.Y--;
                     break;
                 case Direction.South:
+                case Direction.Down:
                     if (tank.Y < mapHeight - 1) tank.Y++;
                     break;
                 case Direction.East:
+                case Direction.Right:
                     if (tank.X < mapWidth - 1) tank.X++;
                     break;
                 case Direction.West:
+                case Direction.Left:
                     if (tank.X > 0) tank.X--;
                     break;
             }

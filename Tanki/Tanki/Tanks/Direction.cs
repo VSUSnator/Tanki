@@ -12,13 +12,13 @@ namespace Tanki.Tanks
 {
     public enum Direction
     {
-        North,
-        South,
-        East,
-        West,
         Up,
         Down,
         Left,
-        Right
+        Right,
+        North,
+        South,
+        East,
+        West
     }
 }

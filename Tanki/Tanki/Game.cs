@@ -1,96 +1,120 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Tanki.Tanks;
 using Tanki.Map;
-using Tanki;
+using Tanki.Tanks.Enemy;
+using Tanki.Tanks.Player;
 
 namespace Tanki
 {
     public class Game
     {
-        private Tank mainPlayerTank; // Основной танк игрока
-        private TankMovement tankController; // Контроллер движения танка
-        private Renderer renderer; // Объект рендерера
-        private List<Bullet> bullets = new List<Bullet>(); // Список снарядов
-        private int mapWidth = 50; // Ширина карты
-        private int mapHeight = 24; // Высота карты
-        private GameMap gameMap; // Объект карты
+        private PlayerTank mainPlayerTank;
+        private List<EnemyTank> enemyTanks;
+        private TankMovement tankController;
+        private Renderer renderer;
+        private List<Bullet> bullets = new List<Bullet>();
+        public static int MapWidth { get; private set; } = 50;
+        public static int MapHeight { get; private set; } = 24;
+        private GameMap gameMap;
         private int frameCount = 0;
 
         public Game()
         {
-            mainPlayerTank = new Tank { X = mapWidth / 2, Y = mapHeight / 2 };
-            tankController = new TankMovement(mainPlayerTank, mapWidth, mapHeight);
-            renderer = new Renderer(mapWidth, mapHeight);
-            gameMap = new GameMap();
-            gameMap.Render();
+            mainPlayerTank = new PlayerTank(MapWidth / 2, MapHeight / 2, Direction.Up);
+            enemyTanks = new List<EnemyTank>
+            {
+                new EnemyTank(MapWidth / 4, MapHeight / 4, Direction.Right),
+                new EnemyTank(MapWidth / 3, MapHeight / 3, Direction.Left)
+            };
+            tankController = new TankMovement(mainPlayerTank, MapWidth, MapHeight);
+            renderer = new Renderer(MapWidth, MapHeight);
+            gameMap = new GameMap(MapWidth, MapHeight);
         }
 
         public void Start()
         {
-            //while (true)
-            //{
-            //    UpdateGameState();
-            //    RenderGame();
-            //    System.Threading.Thread.Sleep(100); // Пауза между кадрами
-            //}
-
             while (true)
             {
                 UpdateGameState();
 
                 // Обновляем каждые 5 кадров
-                if (frameCount % 5 == 0)
+                if (frameCount % 4 == 0)
                 {
                     RenderGame();
                 }
 
                 frameCount++;
                 System.Threading.Thread.Sleep(100); // Пауза между кадрами
-            }
 
+                // Добавляем возможность выхода из игры
+                if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.Escape)
+                {
+                    break; // Выход из игры по нажатию Escape
+                }
+            }
         }
 
         private void UpdateGameState()
         {
+            if (tankController == null)
+            {
+                throw new InvalidOperationException("tankController не инициализирован.");
+            }
+
             if (Console.KeyAvailable)
             {
                 var key = Console.ReadKey(true).Key;
-
-                // Обновляем направление танка
                 UpdateTankDirection(mainPlayerTank, key);
 
                 switch (key)
                 {
                     case ConsoleKey.UpArrow:
-                        tankController.Move(Direction.North); // Двигаем танк вверх
+                        tankController.Move(Direction.North);
                         break;
                     case ConsoleKey.DownArrow:
-                        tankController.Move(Direction.South); // Двигаем танк вниз
+                        tankController.Move(Direction.South);
                         break;
                     case ConsoleKey.LeftArrow:
-                        tankController.Move(Direction.West); // Двигаем танк влево
+                        tankController.Move(Direction.West);
                         break;
                     case ConsoleKey.RightArrow:
-                        tankController.Move(Direction.East); // Двигаем танк вправо
+                        tankController.Move(Direction.East);
                         break;
                     case ConsoleKey.Spacebar:
-                        mainPlayerTank.Shoot(bullets); // Стрельба
+                        mainPlayerTank.Shoot(bullets, 5); // Указываем cooldown
                         break;
                 }
+            }
 
-                // Обновляем снаряды
-                for (int i = bullets.Count - 1; i >= 0; i--)
+            // Обновляем врагов
+            foreach (var enemy in enemyTanks)
+            {
+                enemy.Update(bullets);
+            }
+
+            // Обновляем снаряды
+            for (int i = bullets.Count - 1; i >= 0; i--)
+            {
+                var bullet = bullets[i];
+                bullet.UpdateBullet();
+
+                // Проверяем, попал ли снаряд в врага
+                for (int j = enemyTanks.Count - 1; j >= 0; j--)
                 {
-                    var bullet = bullets[i];
-                    bullet.UpdateBullet();
-                    if (bullet.BulletX < 0 || bullet.BulletX >= mapWidth || bullet.BulletY < 0 || bullet.BulletY >= mapHeight)
+                    var enemy = enemyTanks[j];
+                    if (bullet.BulletX == enemy.X && bullet.BulletY == enemy.Y)
                     {
-                        bullets.RemoveAt(i); // Удаляем, если снаряд вышел за пределы карты
+                        // Удаляем врага из списка
+                        enemyTanks.Remove(enemy);
+                        bullets.RemoveAt(i); // Удаляем снаряд после попадания
+                        break; // Выходим из цикла после попадания
                     }
+                }
+
+                if (bullet.BulletX < 0 || bullet.BulletX >= MapWidth || bullet.BulletY < 0 || bullet.BulletY >= MapHeight)
+                {
+                    bullets.RemoveAt(i); // Удаляем, если снаряд вышел за пределы карты
                 }
             }
         }
@@ -100,16 +124,16 @@ namespace Tanki
             switch (key)
             {
                 case ConsoleKey.UpArrow:
-                    playerTank.Direction = Direction.North;
+                    playerTank.Direction = Direction.Up;
                     break;
                 case ConsoleKey.DownArrow:
-                    playerTank.Direction = Direction.South;
+                    playerTank.Direction = Direction.Down;
                     break;
                 case ConsoleKey.LeftArrow:
-                    playerTank.Direction = Direction.West;
+                    playerTank.Direction = Direction.Left;
                     break;
                 case ConsoleKey.RightArrow:
-                    playerTank.Direction = Direction.East;
+                    playerTank.Direction = Direction.Right;
                     break;
             }
         }
@@ -117,8 +141,14 @@ namespace Tanki
         private void RenderGame()
         {
             Console.SetCursorPosition(0, 0);
-            gameMap.Render();
-            renderer.Render(mainPlayerTank, bullets); // Исправлено на mainPlayerTank
+            gameMap.Render(); // Отображаем карту
+            renderer.Render(mainPlayerTank, bullets); // Отображаем основной танк и снаряды
+
+            // Отображаем врагов
+            foreach (var enemy in enemyTanks)
+            {
+                renderer.RenderEnemyTank(enemy); // Рендеринг врага
+            }
         }
     }
 }
