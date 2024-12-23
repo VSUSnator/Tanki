@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Tanki.Map;
+using Tanki.Tanks;
 
 namespace Tanki.Tanks.Enemy
 {
@@ -11,11 +12,11 @@ namespace Tanki.Tanks.Enemy
         private int shootTimer;
         private int moveCooldown;
         private int moveTimer;
-        private GameMap gameMap;
 
         public bool IsAlive { get; private set; } // Свойство, указывающее, жив ли враг
 
-        public EnemyTank(int x, int y, Direction direction, GameMap map) : base(x, y, direction)
+        public EnemyTank(int x, int y, Direction direction, GameState gameState, int shotCooldown = 5) // Изменено
+            : base(x, y, direction, gameState) // Передаем gameState в базовый класс
         {
             random = new Random();
             shootCooldown = 32; // Количество кадров до следующей стрельбы
@@ -24,7 +25,6 @@ namespace Tanki.Tanks.Enemy
             moveCooldown = 16; // Количество кадров до следующего движения
             moveTimer = 0;
 
-            gameMap = map;
             IsAlive = true; // Враг считается живым при создании
         }
 
@@ -60,7 +60,8 @@ namespace Tanki.Tanks.Enemy
         {
             if (!IsAlive) return; // Если танк мёртв, не стрелять
 
-            base.Shoot(bullets, cooldown);
+            Console.WriteLine("EnemyTank shooting at position: " + X + ", " + Y);
+            bullets.Add(new Bullet(X, Y, Direction, gameState)); // Передаем gameState
         }
 
         private void CheckBulletCollisions(List<Bullet> bullets)

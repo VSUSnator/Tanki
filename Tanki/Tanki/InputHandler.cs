@@ -35,7 +35,7 @@ namespace Tanki
             tankMovement = movement;
         }
 
-        public void ProcessInput(List<Bullet> bullets, int frameCount)
+        public void ProcessInput(IReadOnlyList<Bullet> bullets, int frameCount)
         {
             while (Console.KeyAvailable)
             {
@@ -48,8 +48,10 @@ namespace Tanki
                 }
                 else if (key == ConsoleKey.Spacebar)
                 {
-                    // Вызываем событие OnShoot
-                    OnShoot?.Invoke(bullets, frameCount);
+                    // Создаем новый список на основе IReadOnlyList
+                    var bulletsList = new List<Bullet>(bullets);
+                    // Вызываем событие OnShoot с новым списком
+                    OnShoot?.Invoke(bulletsList, frameCount);
                 }
             }
         }

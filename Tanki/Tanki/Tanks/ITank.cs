@@ -7,6 +7,7 @@ namespace Tanki.Tanks
         int X { get; set; }
         int Y { get; set; }
         Direction Direction { get; set; }
+        bool IsAlive { get; }
 
         void Move(Direction direction);
         void Shoot(List<Bullet> bullets, int cooldown);

@@ -9,15 +9,13 @@ namespace Tanki
 {
     public class Game
     {
-        private PlayerTank mainPlayerTank;
-        private List<EnemyTank> enemyTanks;
-        private Renderer renderer;
-        private List<Bullet> bullets = new List<Bullet>();
+        private GameState gameState; // Экземпляр GameState
         public static int MapWidth { get; private set; } = 50;
         public static int MapHeight { get; private set; } = 24;
-        private GameMap gameMap;
-        private TankMovement tankMovement;
-        private InputHandler inputHandler; // Добавляем InputHandler
+        private readonly GameMap gameMap;
+        private readonly PlayerTank mainPlayerTank;
+        private readonly Renderer renderer;
+        private InputHandler inputHandler;
         private int frameCount = 0;
         private const int FrameRenderRate = 4;
         private const int FrameDelay = 100;
@@ -25,18 +23,30 @@ namespace Tanki
         public Game()
         {
             gameMap = new GameMap(MapWidth, MapHeight);
-            mainPlayerTank = new PlayerTank(MapWidth / 8, MapHeight / 7, Direction.Up);
-            enemyTanks = new List<EnemyTank>
-            {
-                new EnemyTank(MapWidth / 10, MapHeight / 4, Direction.Right, gameMap),
-                new EnemyTank(MapWidth / 3, MapHeight / 3, Direction.Left, gameMap)
-            };
-            renderer = new Renderer(MapWidth, MapHeight);
-            tankMovement = new TankMovement(mainPlayerTank, gameMap);
-            inputHandler = new InputHandler(mainPlayerTank, tankMovement); // Инициализируем InputHandler
+            gameState = new GameState(gameMap); // Инициализация GameState с GameMap
+            mainPlayerTank = new PlayerTank(MapWidth / 8, MapHeight / 7, Direction.Up, gameState); // Передаем gameState
 
-            // Подписываемся на событие OnShoot
-            inputHandler.OnShoot += mainPlayerTank.Shoot;
+            var enemyTanks = CreateEnemyTanks(); // Создание врагов
+            gameState.AddEnemyTanks(enemyTanks); // Добавляем врагов в GameState
+
+            renderer = new Renderer(MapWidth, MapHeight);
+            inputHandler = new InputHandler(mainPlayerTank, new TankMovement(mainPlayerTank, gameMap)); // Передаем оба аргумента
+            inputHandler.OnShoot += HandleShoot; // Подписываемся на событие стрельбы
+        }
+
+        private List<EnemyTank> CreateEnemyTanks()
+        {
+            return new List<EnemyTank>
+            {
+                new EnemyTank(MapWidth / 10, MapHeight / 4, Direction.Right, gameState), // Передаем gameState
+                new EnemyTank(MapWidth / 3, MapHeight / 3, Direction.Left, gameState) // Передаем gameState
+            };
+        }
+
+        private void Shoot(List<Bullet> bullets)
+        {
+            var bullet = new Bullet(mainPlayerTank.X, mainPlayerTank.Y, mainPlayerTank.Direction, gameState);
+            bullets.Add(bullet); // Добавляем пулю в список
         }
 
         public void Start()
@@ -60,74 +70,18 @@ namespace Tanki
 
         private void UpdateGameState()
         {
-            inputHandler.ProcessInput(bullets, frameCount); // Передаем снаряды и кадры для стрельбы
-
-            foreach (var enemy in enemyTanks)
-            {
-                enemy.Update(bullets);
-            }
-
-            UpdateBullets();
-        }
-
-        private void UpdateBullets()
-        {
-            bullets.RemoveAll(b => !b.UpdateBullet(OnBulletHit) || !IsBulletInBounds(b));
-
-            var bulletsToRemove = new HashSet<int>();
-            var enemiesToRemove = new HashSet<int>();
-
-            for (int i = 0; i < bullets.Count; i++)
-            {
-                for (int j = 0; j < enemyTanks.Count; j++)
-                {
-                    if (bullets[i].BulletX == enemyTanks[j].X && bullets[i].BulletY == enemyTanks[j].Y)
-                    {
-                        enemiesToRemove.Add(j);
-                        bulletsToRemove.Add(i);
-                        break;
-                    }
-                }
-            }
-
-            foreach (var index in enemiesToRemove)
-            {
-                enemyTanks.RemoveAt(index);
-            }
-
-            foreach (var index in bulletsToRemove)
-            {
-                bullets.RemoveAt(index);
-            }
-        }
-
-        // Метод, который будет вызываться при попадании снаряда
-        private void OnBulletHit(int x, int y)
-        {
-            // Здесь можно добавить логику обработки попадания, например, удаления врага
-            for (int i = 0; i < enemyTanks.Count; i++)
-            {
-                if (enemyTanks[i].X == x && enemyTanks[i].Y == y)
-                {
-                    enemyTanks.RemoveAt(i);
-                    break; // Выход, если враг найден и удален
-                }
-            }
-        }
-
-        private bool IsBulletInBounds(Bullet bullet)
-        {
-            return bullet.BulletX >= 0 && bullet.BulletX < MapWidth &&
-                   bullet.BulletY >= 0 && bullet.BulletY < MapHeight;
+            List<Bullet> bulletsList = new List<Bullet>(gameState.Bullets); // Создание нового списка
+            inputHandler.ProcessInput(bulletsList, frameCount); // Передаем новый список в метод
+            gameState.Update(); // Обновление состояния игры
         }
 
         private void RenderGame()
         {
             Console.SetCursorPosition(0, 0);
             gameMap.Render();
-            renderer.Render(mainPlayerTank, bullets);
-
-            foreach (var enemy in enemyTanks)
+            List<Bullet> bulletsList = new List<Bullet>(gameState.Bullets); // Создание нового списка
+            renderer.Render(mainPlayerTank, bulletsList); // Передаем новый список
+            foreach (var enemy in gameState.EnemyTanks)
             {
                 renderer.RenderEnemyTank(enemy);
             }
@@ -141,6 +95,11 @@ namespace Tanki
             {
                 System.Threading.Thread.Sleep(FrameDelay - (int)elapsedTime.TotalMilliseconds);
             }
+        }
+
+        private void HandleShoot(List<Bullet> bullets, int cooldown)
+        {
+            Shoot(bullets); // Вызов метода Shoot
         }
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Tanki.Tanks;
 using Tanki.Tanks.Enemy;
+using Tanki.Tanks.Player;
 
 namespace Tanki
 {
@@ -16,7 +17,7 @@ namespace Tanki
             this.mapHeight = mapHeight;
         }
 
-        public void Render(Tank playerTank, List<Bullet> bullets)
+        public void Render(PlayerTank playerTank, IReadOnlyList<Bullet> bullets)
         {
             Console.Clear();
 

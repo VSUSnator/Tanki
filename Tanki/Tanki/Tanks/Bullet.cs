@@ -1,76 +1,68 @@
 ﻿using System;
 using Tanki.Map;
+using Tanki.Tanks;
 
-namespace Tanki.Tanks
+namespace Tanki
 {
     public class Bullet
     {
         public int BulletX { get; private set; }
         public int BulletY { get; private set; }
         public Direction Direction { get; private set; }
-        private GameMap gameMap; // Ссылка на карту
-        private int updateCooldown; // Количество кадров между обновлениями
+        private GameState gameState;
 
-        // Конструктор с пятью параметрами
-        public Bullet(int x, int y, Direction direction, GameMap map, int cooldown = 5)
+        public Bullet(int x, int y, Direction direction, GameState gameState) // Изменено здесь
         {
             BulletX = x;
             BulletY = y;
             Direction = direction;
-            gameMap = map; // Инициализируем карту
-            updateCooldown = cooldown; // Устанавливаем значение cooldown
+            this.gameState = gameState ?? throw new InvalidOperationException("GameState is not initialized."); // Проверка на инициализацию
         }
 
         public bool UpdateBullet(Action<int, int> onHitEnemy)
         {
-            if (gameMap == null)
+            if (!IsInBounds() || !gameState.Map.CanShootThrough(BulletX, BulletY))
             {
-                throw new InvalidOperationException("GameMap is not initialized."); // Исключение, если gameMap не инициализирован
+                return false; // Удаляем пулю, если она выходит за пределы карты или не может пройти
             }
 
-            // Проверяем, можно ли двигаться дальше
-            if (BulletX < 0 || BulletX >= gameMap.Width ||
-                BulletY < 0 || BulletY >= gameMap.Height ||
-                !gameMap.CanShootThrough(BulletX, BulletY))
+            if (gameState.Map.HasEnemyAt(BulletX, BulletY))
             {
-                return false; // Если снаряд не может пройти, возвращаем false для удаления
-            }
-
-            // Проверяем столкновение с врагами
-            if (gameMap.HasEnemyAt(BulletX, BulletY))
-            {
-                // Уведомляем о попадании во врага
                 onHitEnemy(BulletX, BulletY);
-                return false; // Удаляем пулю
+                return false; // Удаляем пулю после попадания
             }
 
-            // Обновляем позицию снаряда
-            MoveBullet();
-
-            return true; // Если снаряд продолжает движение, возвращаем true
+            Move();
+            return true; // Пуля продолжает движение
         }
 
-        private void MoveBullet()
+        private void Move()
         {
             switch (Direction)
             {
                 case Direction.Up:
                 case Direction.North:
-                    BulletY--; // Двигаем снаряд вверх
+                    BulletY--;
                     break;
                 case Direction.Down:
                 case Direction.South:
-                    BulletY++; // Двигаем снаряд вниз
+                    BulletY++;
                     break;
                 case Direction.Right:
                 case Direction.East:
-                    BulletX++; // Двигаем снаряд вправо
+                    BulletX++;
                     break;
                 case Direction.Left:
                 case Direction.West:
-                    BulletX--; // Двигаем снаряд влево
+                    BulletX--;
                     break;
             }
+        }
+
+        private bool IsInBounds()
+        {
+            return BulletX >= 0 && BulletX < gameState.Map.Width &&
+                   BulletY >= 0 && BulletY < gameState.Map.Height;
         }
     }
 }
