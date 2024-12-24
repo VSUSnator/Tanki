@@ -1,68 +1,42 @@
 ﻿using System;
 using Tanki.Map;
-using Tanki.Tanks;
 
 namespace Tanki
 {
-    public class Bullet
+    public class Bullet : MapObject // Наследование от MapObject
     {
-        public int BulletX { get; private set; }
-        public int BulletY { get; private set; }
-        public Direction Direction { get; private set; }
-        private GameState gameState;
+        public string Direction { get; set; } // Хранит направление снаряда
 
-        public Bullet(int x, int y, Direction direction, GameState gameState) // Изменено здесь
+        public Bullet(int x, int y) : base(x, y, '*') // Символ снаряда '*'
         {
-            BulletX = x;
-            BulletY = y;
-            Direction = direction;
-            this.gameState = gameState ?? throw new InvalidOperationException("GameState is not initialized."); // Проверка на инициализацию
+            X = x;
+            Y = y;
         }
 
-        public bool UpdateBullet(Action<int, int> onHitEnemy)
+        public void Move()
         {
-            if (!IsInBounds() || !gameState.Map.CanShootThrough(BulletX, BulletY))
-            {
-                return false; // Удаляем пулю, если она выходит за пределы карты или не может пройти
-            }
-
-            if (gameState.Map.HasEnemyAt(BulletX, BulletY))
-            {
-                onHitEnemy(BulletX, BulletY);
-                return false; // Удаляем пулю после попадания
-            }
-
-            Move();
-            return true; // Пуля продолжает движение
-        }
-
-        private void Move()
-        {
+            // Двигаем снаряд в зависимости от его направления
             switch (Direction)
             {
-                case Direction.Up:
-                case Direction.North:
-                    BulletY--;
+                case "Up":
+                    Y -= 1;
                     break;
-                case Direction.Down:
-                case Direction.South:
-                    BulletY++;
+                case "Down":
+                    Y += 1;
                     break;
-                case Direction.Right:
-                case Direction.East:
-                    BulletX++;
+                case "Left":
+                    X -= 1;
                     break;
-                case Direction.Left:
-                case Direction.West:
-                    BulletX--;
+                case "Right":
+                    X += 1;
                     break;
             }
         }
 
-        private bool IsInBounds()
+        public override void Draw()
         {
-            return BulletX >= 0 && BulletX < gameState.Map.Width &&
-                   BulletY >= 0 && BulletY < gameState.Map.Height;
+            Console.SetCursorPosition(X, Y);
+            Console.Write(Symbol); // Отображение снаряда
         }
     }
 }

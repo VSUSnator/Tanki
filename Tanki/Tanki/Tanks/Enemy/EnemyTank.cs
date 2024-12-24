@@ -1,87 +1,45 @@
-﻿using System;
-using System.Collections.Generic;
-using Tanki.Map;
-using Tanki.Tanks;
+﻿using Tanki.Map;
 
-namespace Tanki.Tanks.Enemy
+namespace Tanki
 {
-    public class EnemyTank : Tank
+    public class Obstacle
     {
-        private Random random;
-        private int shootCooldown;
-        private int shootTimer;
-        private int moveCooldown;
-        private int moveTimer;
+        public int X { get; private set; }
+        public int Y { get; private set; }
 
-        public bool IsAlive { get; private set; } // Свойство, указывающее, жив ли враг
-
-        public EnemyTank(int x, int y, Direction direction, GameState gameState, int shotCooldown = 5) // Изменено
-            : base(x, y, direction, gameState) // Передаем gameState в базовый класс
+        public Obstacle(int x, int y)
         {
-            random = new Random();
-            shootCooldown = 32; // Количество кадров до следующей стрельбы
-            shootTimer = 0;
+            X = x;
+            Y = y;
+        }
+    }
 
-            moveCooldown = 16; // Количество кадров до следующего движения
-            moveTimer = 0;
+    public class Enemy : IMovable
+    {
+        public int X { get; private set; }
+        public int Y { get; private set; }
 
-            IsAlive = true; // Враг считается живым при создании
+        public Enemy(int x, int y)
+        {
+            X = x;
+            Y = y;
         }
 
-        public void Update(List<Bullet> bullets)
+        public void Move(int dx, int dy)
         {
-            if (!IsAlive) return; // Если танк мёртв, ничего не делать
-
-            shootTimer++;
-            moveTimer++;
-
-            if (shootTimer >= shootCooldown)
-            {
-                Shoot(bullets, 5);
-                shootTimer = 0; // Сброс таймера после стрельбы
-            }
-
-            if (moveTimer >= moveCooldown)
-            {
-                MoveRandomly();
-                moveTimer = 0; // Сброс таймера после движения
-            }
-
-            CheckBulletCollisions(bullets);
+            // Проверка границ экрана
+            if (X + dx >= 0 && X + dx < 20)
+                X += dx;
+            if (Y + dy >= 0 && Y + dy < 15)
+                Y += dy;
         }
 
-        private void MoveRandomly()
+        // Реализация метода Move без параметров (например, для автоматического движения)
+        public void Move()
         {
-            Direction newDirection = (Direction)random.Next(0, 4);
-            Move(newDirection);
-        }
-
-        public override void Shoot(List<Bullet> bullets, int cooldown)
-        {
-            if (!IsAlive) return; // Если танк мёртв, не стрелять
-
-            Console.WriteLine("EnemyTank shooting at position: " + X + ", " + Y);
-            bullets.Add(new Bullet(X, Y, Direction, gameState)); // Передаем gameState
-        }
-
-        private void CheckBulletCollisions(List<Bullet> bullets)
-        {
-            for (int i = bullets.Count - 1; i >= 0; i--)
-            {
-                Bullet bullet = bullets[i];
-
-                if (bullet.BulletX == X && bullet.BulletY == Y)
-                {
-                    Die();
-                    bullets.RemoveAt(i);
-                    break;
-                }
-            }
-        }
-
-        private void Die()
-        {
-            IsAlive = false; // Устанавливаем состояние танка как "мертвый"
+            // Логика для движения без параметров, если нужно
+            // Например, просто двигаться вперед
+            Y -= 1; // Двигаемся вверх по оси Y
         }
     }
 }

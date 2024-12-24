@@ -1,130 +1,81 @@
 ﻿using System.Collections.Generic;
-using Tanki.Tanks.Enemy;
+using System.IO;
+using System.Linq;
+using System.Net.NetworkInformation;
 
 namespace Tanki.Map
 {
     public class GameMap
     {
-        private char[,] cells;
-        private List<EnemyTank> enemyTanks; // Список врагов на карте
+        private List<MapObject> mapObjects;
+        private char[,] mapState;
 
-        public int Width { get; private set; } // Свойство для ширины карты
-        public int Height { get; private set; } // Свойство для высоты карты
-
-        public GameMap(int width, int height)
+        public GameMap(string filePath)
         {
-            Width = width;
-            Height = height;
-            cells = new char[height, width];
-            enemyTanks = new List<EnemyTank>(); // Инициализируем список врагов
-            InitializeMap();
+            mapObjects = new List<MapObject>();
+            LoadMap(filePath);
+            InitializeMapState();
+        }
+        private void InitializeMapState()
+        {
+            mapState = new char[20, 15]; // Предполагаем, что размер карты 20x15
+            foreach (var mapObject in mapObjects)
+            {
+                mapState[mapObject.X, mapObject.Y] = mapObject.Symbol;
+            }
         }
 
-        private void InitializeMap()
+        private void LoadMap(string filePath)
         {
-            string[] mapData = new string[]
+            if (File.Exists(filePath))
             {
-                "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓",
-                "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓",
-                "▓▓▓▓    ▓▓▓▓                            ▓▓▓▓    ▓▓▓▓",
-                "▓▓▓▓    ▓▓▓▓                            ▓▓▓▓    ▓▓▓▓",
-                "▓▓▓▓    ▓▓▓▓    ▓▓▓▓▓▓▓▓████    ▓▓▓▓    ▓▓▓▓    ▓▓▓▓",
-                "▓▓▓▓    ▓▓▓▓    ▓▓▓▓▓▓▓▓████    ▓▓▓▓    ▓▓▓▓    ▓▓▓▓",
-                "▓▓▓▓            ▓▓▓▓            ▓▓▓▓            ▓▓▓▓",
-                "▓▓▓▓            ▓▓▓▓            ▓▓▓▓            ▓▓▓▓",
-                "▓▓▓▓▓▓▓▓        ████    ████████████▓▓▓▓▓▓▓▓    ▓▓▓▓",
-                "▓▓▓▓▓▓▓▓        ████    ████████████▓▓▓▓▓▓▓▓    ▓▓▓▓",
-                "▓▓▓▓            ▓▓▓▓            ▓▓▓▓    ▓▓▓▓    ▓▓▓▓",
-                "▓▓▓▓            ▓▓▓▓            ▓▓▓▓    ▓▓▓▓    ▓▓▓▓",
-                "▓▓▓▓    ▓▓▓▓    ▓▓▓▓▓▓▓▓████    ▓▓▓▓    ▓▓▓▓    ▓▓▓▓",
-                "▓▓▓▓    ▓▓▓▓    ▓▓▓▓▓▓▓▓████    ▓▓▓▓    ▓▓▓▓    ▓▓▓▓",
-                "▓▓                                              ▓▓▓",
-                "▓▓                                              ▓▓▓",
-                "▓▓                                              ▓▓▓",
-                "▓▓                                              ▓▓▓",
-                "▓▓                                              ▓▓▓",
-                "▓▓                                              ▓▓▓",
-                "▓▓                                              ▓▓▓",
-                "▓▓                                              ▓▓▓",
-                "▓▓                                              ▓▓▓",
-                "▓▓                                              ▓▓▓",
-                "▓▓                                              ▓▓▓",
-                "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-            };
+                var lines = File.ReadAllLines(filePath);
+                int height = lines.Length;
 
-            for (int y = 0; y < cells.GetLength(0); y++)
-            {
-                for (int x = 0; x < cells.GetLength(1); x++)
+                for (int y = 0; y < height; y++)
                 {
-                    cells[y, x] = mapData[y][x]; // Инициализируем карту из данных
+                    int width = lines[y].Length;
+
+                    for (int x = 0; x < width; x++)
+                    {
+                        char symbol = lines[y][x];
+                        MapObject mapObject;
+
+                        switch (symbol)
+                        {
+                            case '#':
+                                mapObject = new Wall(x, y);
+                                break;
+                            case 'X':
+                                mapObject = new Obstacle(x, y);
+                                break;
+                            case '.':
+                            default:
+                                mapObject = new EmptySpace(x, y);
+                                break;
+                        }
+
+                        mapObjects.Add(mapObject);
+                    }
                 }
             }
         }
 
-        public void Render(bool clear = false)
+        public char GetMapSymbol(int x, int y)
         {
-            if (clear)
+            if (x >= 0 && x < 20 && y >= 0 && y < 15)
             {
-                Console.Clear();
+                return mapState[x, y]; // Возвращаем символ из состояния карты
             }
-
-            for (int y = 0; y < cells.GetLength(0); y++)
-            {
-                for (int x = 0; x < cells.GetLength(1); x++)
-                {
-                    Console.SetCursorPosition(x, y);
-                    Console.Write(cells[y, x]);
-                }
-            }
+            return '.'; // По умолчанию
         }
 
-        public bool HasEnemyAt(int x, int y)
+        public void UpdateMapObject(MapObject mapObject)
         {
-            // Проверяем, есть ли враг в заданной позиции
-            foreach (var enemy in enemyTanks)
+            // Проверяем, находится ли объект в пределах карты
+            if (mapObject.X >= 0 && mapObject.X < mapState.GetLength(0) && mapObject.Y >= 0 && mapObject.Y < mapState.GetLength(1))
             {
-                if (enemy.X == x && enemy.Y == y && enemy.IsAlive) // Предполагается, что у врага есть свойство IsAlive
-                {
-                    return true; // Враг найден
-                }
-            }
-            return false; // Врагов в данной позиции нет
-        }
-
-        public void AddEnemy(EnemyTank enemy)
-        {
-            enemyTanks.Add(enemy); // Метод для добавления врага на карту
-        }
-
-        public bool CanMoveTo(int x, int y)
-        {
-            // Проверяем границы карты
-            if (x < 0 || x >= Width || y < 0 || y >= Height)
-            {
-                return false; // Выход за границы
-            }
-
-            // Проверяем, является ли ячейка стеной или разрушимым объектом
-            return cells[y, x] == ' ' || cells[y, x] == '▓'; // Проходим только через пробелы и непробиваемые стены
-        }
-
-        public bool CanShootThrough(int x, int y)
-        {
-            // Проверяем, можно ли прострелить блок
-            // Проверка границ перед доступом к ячейке
-            if (x < 0 || x >= Width || y < 0 || y >= Height)
-            {
-                return false; // Выход за границы
-            }
-            return cells[y, x] == '▓'; // Можно стрелять через блоки, обозначенные символом '▓'
-        }
-
-        public void DestroyBlock(int x, int y)
-        {
-            // Метод для разрушения блока, если он разрушим
-            if (cells[y, x] == '█') // Если блок разрушим
-            {
-                cells[y, x] = ' '; // Заменяем блок на пустое пространство
+                mapState[mapObject.X, mapObject.Y] = mapObject.Symbol; // Обновляем состояние карты
             }
         }
     }

@@ -1,105 +1,117 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
+using System.Threading;
 using Tanki.Map;
-using Tanki.Tanks;
-using Tanki.Tanks.Enemy;
-using Tanki.Tanks.Player;
 
 namespace Tanki
 {
     public class Game
     {
-        private GameState gameState; // Экземпляр GameState
-        public static int MapWidth { get; private set; } = 50;
-        public static int MapHeight { get; private set; } = 24;
-        private readonly GameMap gameMap;
-        private readonly PlayerTank mainPlayerTank;
-        private readonly Renderer renderer;
-        private InputHandler inputHandler;
-        private int frameCount = 0;
-        private const int FrameRenderRate = 4;
-        private const int FrameDelay = 100;
+        private GameState gameState;
+        private Renderer renderer;
+        private bool isGameRunning;
+        private ConcurrentQueue<ConsoleKey> inputQueue;
+        private DateTime lastInputTime; // Время последнего ввода
+        private TimeSpan inputTimeout; // Таймаут для ввода
 
         public Game()
         {
-            gameMap = new GameMap(MapWidth, MapHeight);
-            gameState = new GameState(gameMap); // Инициализация GameState с GameMap
-            mainPlayerTank = new PlayerTank(MapWidth / 8, MapHeight / 7, Direction.Up, gameState); // Передаем gameState
-
-            var enemyTanks = CreateEnemyTanks(); // Создание врагов
-            gameState.AddEnemyTanks(enemyTanks); // Добавляем врагов в GameState
-
-            renderer = new Renderer(MapWidth, MapHeight);
-            inputHandler = new InputHandler(mainPlayerTank, new TankMovement(mainPlayerTank, gameMap)); // Передаем оба аргумента
-            inputHandler.OnShoot += HandleShoot; // Подписываемся на событие стрельбы
-        }
-
-        private List<EnemyTank> CreateEnemyTanks()
-        {
-            return new List<EnemyTank>
-            {
-                new EnemyTank(MapWidth / 10, MapHeight / 4, Direction.Right, gameState), // Передаем gameState
-                new EnemyTank(MapWidth / 3, MapHeight / 3, Direction.Left, gameState) // Передаем gameState
-            };
-        }
-
-        private void Shoot(List<Bullet> bullets)
-        {
-            var bullet = new Bullet(mainPlayerTank.X, mainPlayerTank.Y, mainPlayerTank.Direction, gameState);
-            bullets.Add(bullet); // Добавляем пулю в список
+            string mapFilePath = "C:\\Новая папка\\Tanki-Main\\Tanki\\Tanki\\Tanki\\Map\\map.txt";
+            gameState = new GameState(mapFilePath); // Передаем путь к карте
+            renderer = new Renderer(gameState);
+            isGameRunning = false; // Игра не запущена
+            inputQueue = new ConcurrentQueue<ConsoleKey>();
+            lastInputTime = DateTime.Now; // Инициализируем время последнего ввода
+            inputTimeout = TimeSpan.FromMilliseconds(500); // Устанавливаем таймаут на 500 мс
         }
 
         public void Start()
         {
-            DateTime lastFrameTime = DateTime.Now;
+            StartGame(); // Начинаем игру
+            Task.Run(() => ProcessInputAsync()); // Запускаем асинхронный ввод
 
-            while (true)
+            while (isGameRunning)
             {
-                UpdateGameState();
+                renderer.Draw();
+                ExecuteCommands(); // Выполняем команды из очереди
 
-                if (frameCount % FrameRenderRate == 0)
+                // Проверяем, прошло ли время без ввода, если да - очищаем очередь
+                if (DateTime.Now - lastInputTime > inputTimeout)
                 {
-                    RenderGame();
+                    inputQueue = new ConcurrentQueue<ConsoleKey>(); // Очищаем очередь
                 }
 
-                frameCount++;
-                MaintainFrameRate(lastFrameTime);
-                lastFrameTime = DateTime.Now;
+                gameState.Update(); // Обновляем состояние игры
+                Thread.Sleep(100);
             }
+
+            EndGame(); // Завершаем игру
         }
 
-        private void UpdateGameState()
+        public void GameLoop()
         {
-            List<Bullet> bulletsList = new List<Bullet>(gameState.Bullets); // Создание нового списка
-            inputHandler.ProcessInput(bulletsList, frameCount); // Передаем новый список в метод
-            gameState.Update(); // Обновление состояния игры
-        }
-
-        private void RenderGame()
-        {
-            Console.SetCursorPosition(0, 0);
-            gameMap.Render();
-            List<Bullet> bulletsList = new List<Bullet>(gameState.Bullets); // Создание нового списка
-            renderer.Render(mainPlayerTank, bulletsList); // Передаем новый список
-            foreach (var enemy in gameState.EnemyTanks)
+            while (gameState.IsGameActive)
             {
-                renderer.RenderEnemyTank(enemy);
+                gameState.Update(); // Обновляем состояние игры
+                renderer.Draw(); // Отрисовываем всё
+                System.Threading.Thread.Sleep(100); // Задержка для управления частотой кадров
             }
         }
 
-        private void MaintainFrameRate(DateTime lastFrameTime)
+        private void StartGame()
         {
-            TimeSpan elapsedTime = DateTime.Now - lastFrameTime;
+            isGameRunning = true;
+            gameState.StartGame(); // Логика начала игры
+            Console.WriteLine("Игра началась! Нажмите ESC для выхода.");
+        }
 
-            if (elapsedTime.TotalMilliseconds < FrameDelay)
+        private void EndGame()
+        {
+            isGameRunning = false;
+            gameState.EndGame(); // Логика завершения игры
+            Console.WriteLine("Игра окончена! Спасибо за игру.");
+        }
+
+        private async Task ProcessInputAsync()
+        {
+            while (isGameRunning)
             {
-                System.Threading.Thread.Sleep(FrameDelay - (int)elapsedTime.TotalMilliseconds);
+                if (Console.KeyAvailable)
+                {
+                    ConsoleKeyInfo key = Console.ReadKey(true);
+                    inputQueue.Enqueue(key.Key); // Добавляем нажатую клавишу в очередь
+                    lastInputTime = DateTime.Now; // Обновляем время последнего ввода
+                }
+                await Task.Delay(50); // Небольшая задержка, чтобы не перегружать процессор
             }
         }
 
-        private void HandleShoot(List<Bullet> bullets, int cooldown)
+        private void ExecuteCommands()
         {
-            Shoot(bullets); // Вызов метода Shoot
+            while (inputQueue.TryDequeue(out ConsoleKey key)) // Извлекаем команды из очереди
+            {
+                switch (key)
+                {
+                    case ConsoleKey.W: // Вверх
+                        gameState.Tank.Move(0, -1);
+                        break;
+                    case ConsoleKey.S: // Вниз
+                        gameState.Tank.Move(0, 1);
+                        break;
+                    case ConsoleKey.A: // Влево
+                        gameState.Tank.Move(-1, 0);
+                        break;
+                    case ConsoleKey.D: // Вправо
+                        gameState.Tank.Move(1, 0);
+                        break;
+                    case ConsoleKey.Spacebar: // Стрельба
+                        gameState.AddBullet();
+                        break;
+                    case ConsoleKey.Escape: // Выход
+                        EndGame(); // Завершение игры
+                        break;
+                }
+            }
         }
     }
 }

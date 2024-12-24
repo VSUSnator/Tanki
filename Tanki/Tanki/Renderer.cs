@@ -1,112 +1,41 @@
 ﻿using System;
-using System.Collections.Generic;
-using Tanki.Tanks;
-using Tanki.Tanks.Enemy;
-using Tanki.Tanks.Player;
+using Tanki.Map;
 
 namespace Tanki
 {
     public class Renderer
     {
-        private int mapWidth;
-        private int mapHeight;
+        private GameState gameState;
 
-        public Renderer(int mapWidth, int mapHeight)
+        public Renderer(GameState gameState)
         {
-            this.mapWidth = mapWidth;
-            this.mapHeight = mapHeight;
+            this.gameState = gameState;
         }
 
-        public void Render(PlayerTank playerTank, IReadOnlyList<Bullet> bullets)
+        public void Draw()
         {
-            Console.Clear();
+            Console.Clear(); // Очистка консоли
 
-            // Отображение танка игрока
-            string[] tankSymbols = GetTankSymbols(playerTank.Direction);
-            for (int i = 0; i < tankSymbols.Length; i++)
+            // Отображение карты
+            for (int y = 0; y < 15; y++)
             {
-                Console.SetCursorPosition(playerTank.X, playerTank.Y + i);
-                Console.Write(tankSymbols[i]); // Выводим символы танка игрока
+                for (int x = 0; x < 20; x++)
+                {
+                    Console.Write(gameState.GameMap.GetMapSymbol(x, y)); // Используем экземпляр GameMap из gameState
+                }
+                Console.WriteLine();
             }
 
             // Отображение снарядов
-            foreach (var bullet in bullets)
+            foreach (Bullet bullet in gameState.Bullets) // Используем Bullets из gameState
             {
-                // Проверка, что снаряд находится в пределах карты
-                if (bullet.BulletX >= 0 && bullet.BulletX < mapWidth && bullet.BulletY >= 0 && bullet.BulletY < mapHeight)
-                {
-                    Console.SetCursorPosition(bullet.BulletX, bullet.BulletY);
-                    Console.Write("*"); // Символ для снаряда
-                }
+                Console.SetCursorPosition(bullet.X, bullet.Y);
+                Console.Write(bullet.Symbol); // Отображение снаряда
             }
-        }
 
-        public void RenderEnemyTank(EnemyTank enemyTank)
-        {
-            string[] enemyTankSymbols = GetEnemyTankSymbols(enemyTank.Direction);
-            for (int i = 0; i < enemyTankSymbols.Length; i++)
-            {
-                Console.SetCursorPosition(enemyTank.X, enemyTank.Y + i);
-                Console.Write(enemyTankSymbols[i]); // Выводим символы врага
-            }
-        }
-
-        private string[] GetTankSymbols(Direction direction)
-        {
-            switch (direction)
-            {
-                case Direction.Up:
-                    return new string[]
-                    {
-                        @"|^|", // Символ для игрока, смотрящего вверх
-                    };
-                case Direction.Down:
-                    return new string[]
-                    {
-                        @"|v|", // Символ для игрока, смотрящего вниз
-                    };
-                case Direction.Left:
-                    return new string[]
-                    {
-                        @"<|", // Символ для игрока, смотрящего влево
-                    };
-                case Direction.Right:
-                    return new string[]
-                    {
-                        @"|>", // Символ для игрока, смотрящего вправо
-                    };
-                default:
-                    return new string[] { "  ^  ", " /|\\ ", "=====" }; // По умолчанию
-            }
-        }
-
-        private string[] GetEnemyTankSymbols(Direction direction)
-        {
-            switch (direction)
-            {
-                case Direction.Up:
-                    return new string[]
-                    {
-                        @"/^\\", // Символ для врага, смотрящего вверх
-                    };
-                case Direction.Down:
-                    return new string[]
-                    {
-                        @"/v\\", // Символ для врага, смотрящего вниз
-                    };
-                case Direction.Left:
-                    return new string[]
-                    {
-                        @"<\\", // Символ для врага, смотрящего влево
-                    };
-                case Direction.Right:
-                    return new string[]
-                    {
-                        @"\\>", // Символ для врага, смотрящего вправо
-                    };
-                default:
-                    return new string[] { "  ^  ", " /|\\ ", "=====" }; // По умолчанию
-            }
+            // Отображение танка
+            Console.SetCursorPosition(gameState.Tank.X, gameState.Tank.Y);
+            Console.Write("T"); // Отображение танка
         }
     }
 }

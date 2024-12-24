@@ -1,24 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Tanki.Tanks;
 using Tanki.Map;
-using Tanki;
 
 namespace Tanki
 {
-    namespace Tanki
+    class Program
     {
-        public class Program
+        static void Main(string[] args)
         {
-            static void Main()
-            {
-                var game = new Game();
-                game.Start();
-            }
+            Game game = new Game();
+            game.Start();
         }
     }
-
 }
