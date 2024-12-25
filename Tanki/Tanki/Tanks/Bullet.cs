@@ -33,6 +33,11 @@ namespace Tanki
             }
         }
 
+        public bool IsInBounds(int width, int height)
+        {
+            return X >= 0 && X < width && Y >= 0 && Y < height; // Проверяем, находится ли снаряд в пределах игрового поля
+        }
+
         public override void Draw()
         {
             Console.SetCursorPosition(X, Y);

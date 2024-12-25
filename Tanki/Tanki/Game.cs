@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 using Tanki.Map;
 
 namespace Tanki
@@ -9,108 +11,126 @@ namespace Tanki
     {
         private GameState gameState;
         private Renderer renderer;
-        private bool isGameRunning;
+        private CancellationTokenSource cancellationTokenSource;
         private ConcurrentQueue<ConsoleKey> inputQueue;
-        private DateTime lastInputTime; // Время последнего ввода
-        private TimeSpan inputTimeout; // Таймаут для ввода
+        private DateTime lastInputTime;
+        private TimeSpan inputTimeout;
 
         public Game()
         {
             string mapFilePath = "C:\\Новая папка\\Tanki-Main\\Tanki\\Tanki\\Tanki\\Map\\map.txt";
-            gameState = new GameState(mapFilePath); // Передаем путь к карте
-            renderer = new Renderer(gameState);
-            isGameRunning = false; // Игра не запущена
+            gameState = new GameState(mapFilePath);
+
+            ConsoleColor[] colors = { ConsoleColor.White, ConsoleColor.Red, ConsoleColor.Green, ConsoleColor.Blue };
+            renderer = new Renderer(colors);
+
             inputQueue = new ConcurrentQueue<ConsoleKey>();
-            lastInputTime = DateTime.Now; // Инициализируем время последнего ввода
-            inputTimeout = TimeSpan.FromMilliseconds(500); // Устанавливаем таймаут на 500 мс
+            lastInputTime = DateTime.Now;
+            inputTimeout = TimeSpan.FromMilliseconds(500);
         }
 
         public void Start()
         {
-            StartGame(); // Начинаем игру
-            Task.Run(() => ProcessInputAsync()); // Запускаем асинхронный ввод
+            cancellationTokenSource = new CancellationTokenSource();
+            StartGame();
+            Task.Run(() => ProcessInputAsync(cancellationTokenSource.Token));
 
-            while (isGameRunning)
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+
+            while (!cancellationTokenSource.Token.IsCancellationRequested)
             {
-                renderer.Draw();
-                ExecuteCommands(); // Выполняем команды из очереди
-
-                // Проверяем, прошло ли время без ввода, если да - очищаем очередь
-                if (DateTime.Now - lastInputTime > inputTimeout)
-                {
-                    inputQueue = new ConcurrentQueue<ConsoleKey>(); // Очищаем очередь
-                }
-
-                gameState.Update(); // Обновляем состояние игры
-                Thread.Sleep(100);
+                UpdateGame();
+                CleanInputQueue();
+                Thread.Sleep(150); // FPS
             }
 
-            EndGame(); // Завершаем игру
+            EndGame();
         }
 
-        public void GameLoop()
+        private void UpdateGame()
         {
-            while (gameState.IsGameActive)
+            gameState.Update();
+            renderer.Draw(gameState);
+            ExecuteCommands();
+        }
+
+        private void CleanInputQueue()
+        {
+            if (DateTime.Now - lastInputTime > inputTimeout)
             {
-                gameState.Update(); // Обновляем состояние игры
-                renderer.Draw(); // Отрисовываем всё
-                System.Threading.Thread.Sleep(100); // Задержка для управления частотой кадров
+                // Игнорируем старые команды
             }
         }
 
         private void StartGame()
         {
-            isGameRunning = true;
-            gameState.StartGame(); // Логика начала игры
+            gameState.StartGame();
             Console.WriteLine("Игра началась! Нажмите ESC для выхода.");
         }
 
         private void EndGame()
         {
-            isGameRunning = false;
-            gameState.EndGame(); // Логика завершения игры
+            cancellationTokenSource.Cancel();
+            gameState.EndGame();
             Console.WriteLine("Игра окончена! Спасибо за игру.");
         }
 
-        private async Task ProcessInputAsync()
+        private async Task ProcessInputAsync(CancellationToken cancellationToken)
         {
-            while (isGameRunning)
+            try
             {
-                if (Console.KeyAvailable)
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    ConsoleKeyInfo key = Console.ReadKey(true);
-                    inputQueue.Enqueue(key.Key); // Добавляем нажатую клавишу в очередь
-                    lastInputTime = DateTime.Now; // Обновляем время последнего ввода
+                    if (Console.KeyAvailable)
+                    {
+                        ConsoleKeyInfo key = Console.ReadKey(true);
+                        inputQueue.Enqueue(key.Key);
+                        lastInputTime = DateTime.Now;
+                    }
+                    await Task.Delay(50, cancellationToken);
                 }
-                await Task.Delay(50); // Небольшая задержка, чтобы не перегружать процессор
+            }
+            catch (OperationCanceledException)
+            {
+                // Задача была отменена
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка ввода: {ex.Message}");
             }
         }
 
         private void ExecuteCommands()
         {
-            while (inputQueue.TryDequeue(out ConsoleKey key)) // Извлекаем команды из очереди
+            while (inputQueue.TryDequeue(out ConsoleKey key))
             {
-                switch (key)
-                {
-                    case ConsoleKey.W: // Вверх
-                        gameState.Tank.Move(0, -1);
-                        break;
-                    case ConsoleKey.S: // Вниз
-                        gameState.Tank.Move(0, 1);
-                        break;
-                    case ConsoleKey.A: // Влево
-                        gameState.Tank.Move(-1, 0);
-                        break;
-                    case ConsoleKey.D: // Вправо
-                        gameState.Tank.Move(1, 0);
-                        break;
-                    case ConsoleKey.Spacebar: // Стрельба
-                        gameState.AddBullet();
-                        break;
-                    case ConsoleKey.Escape: // Выход
-                        EndGame(); // Завершение игры
-                        break;
-                }
+                HandleKeyPress(key);
+            }
+        }
+
+        private void HandleKeyPress(ConsoleKey key)
+        {
+            switch (key)
+            {
+                case ConsoleKey.W:
+                    gameState.PlayerTank.Move(0, -1); // Теперь только два аргумента
+                    break;
+                case ConsoleKey.S:
+                    gameState.PlayerTank.Move(0, 1);
+                    break;
+                case ConsoleKey.A:
+                    gameState.PlayerTank.Move(-1, 0);
+                    break;
+                case ConsoleKey.D:
+                    gameState.PlayerTank.Move(1, 0);
+                    break;
+                case ConsoleKey.Spacebar:
+                    gameState.AddBullet(); // Добавление снаряда
+                    break;
+                case ConsoleKey.Escape:
+                    EndGame(); // Завершение игры
+                    break;
             }
         }
     }

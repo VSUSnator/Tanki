@@ -1,14 +1,15 @@
 ﻿using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Net.NetworkInformation;
 
 namespace Tanki.Map
 {
     public class GameMap
     {
         private List<MapObject> mapObjects;
-        private char[,] mapState;
+        private char[,] mapState; // Представление состояния карты
+
+        public int Width => mapState.GetLength(0); // Ширина карты
+        public int Height => mapState.GetLength(1); // Высота карты
 
         public GameMap(string filePath)
         {
@@ -16,12 +17,25 @@ namespace Tanki.Map
             LoadMap(filePath);
             InitializeMapState();
         }
+
         private void InitializeMapState()
         {
             mapState = new char[20, 15]; // Предполагаем, что размер карты 20x15
+            for (int y = 0; y < Height; y++)
+            {
+                for (int x = 0; x < Width; x++)
+                {
+                    mapState[x, y] = ' '; // Изначально заполняем пустыми символами
+                }
+            }
+
+            // Нужно убедиться, что у нас есть все нужные объекты
             foreach (var mapObject in mapObjects)
             {
-                mapState[mapObject.X, mapObject.Y] = mapObject.Symbol;
+                if (mapObject.X >= 0 && mapObject.X < Width && mapObject.Y >= 0 && mapObject.Y < Height)
+                {
+                    mapState[mapObject.X, mapObject.Y] = mapObject.Symbol;
+                }
             }
         }
 
@@ -63,11 +77,25 @@ namespace Tanki.Map
 
         public char GetMapSymbol(int x, int y)
         {
-            if (x >= 0 && x < 20 && y >= 0 && y < 15)
+            if (x >= 0 && x < Width && y >= 0 && y < Height)
             {
-                return mapState[x, y]; // Возвращаем символ из состояния карты
+                return mapState[x, y]; // Теперь обращаемся к mapState
             }
-            return '.'; // По умолчанию
+            return ' '; // Пустой символ, если вне границ
+        }
+
+        public void DestroyObject(int x, int y)
+        {
+            if (x >= 0 && x < Width && y >= 0 && y < Height)
+            {
+                mapState[x, y] = '.'; // Заменяем символ 'X' на пустое пространство
+            }
+        }
+
+        public bool IsWall(int x, int y)
+        {
+            char symbol = GetMapSymbol(x, y);
+            return symbol == '#' || symbol == 'X'; // Предположим, что '#' и 'X' - это стены
         }
 
         public void UpdateMapObject(MapObject mapObject)

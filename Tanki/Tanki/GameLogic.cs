@@ -2,7 +2,7 @@
 
 namespace Tanki
 {
-public class GameLogic
+    public class GameLogic
     {
         private GameState gameState;
 
@@ -13,12 +13,32 @@ public class GameLogic
 
         public void Update()
         {
-            // Логика обновления, если это необходимо
+            if (gameState.IsGameActive)
+            {
+                HandleCollisions();
+                // Здесь можно добавить другие логические обновления
+            }
         }
 
         private void HandleCollisions()
         {
-            // Логика обработки столкновений
+            for (int i = 0; i < gameState.Bullets.Count; i++)
+            {
+                var bullet = gameState.Bullets[i];
+                // Проверка столкновения с танком игрока
+                if (IsColliding(bullet, gameState.PlayerTank))
+                {
+                    // Логика обработки столкновения
+                    gameState.Bullets.RemoveAt(i);
+                    i--; // Уменьшаем индекс, чтобы не пропустить следующий элемент
+                }
+            }
+        }
+
+        private bool IsColliding(Bullet bullet, Tank tank)
+        {
+            // Простая проверка на столкновение (например, по координатам)
+            return bullet.X == tank.X && bullet.Y == tank.Y;
         }
     }
 }
