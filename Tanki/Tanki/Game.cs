@@ -1,9 +1,9 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Tanki.Map;
+using static Tanki.Tank;
 
 namespace Tanki
 {
@@ -12,7 +12,6 @@ namespace Tanki
         private GameState gameState;
         private Renderer renderer;
         private CancellationTokenSource cancellationTokenSource;
-        private ConcurrentQueue<ConsoleKey> inputQueue;
         private DateTime lastInputTime;
         private TimeSpan inputTimeout;
 
@@ -24,9 +23,8 @@ namespace Tanki
             ConsoleColor[] colors = { ConsoleColor.White, ConsoleColor.Red, ConsoleColor.Green, ConsoleColor.Blue };
             renderer = new Renderer(colors);
 
-            inputQueue = new ConcurrentQueue<ConsoleKey>();
             lastInputTime = DateTime.Now;
-            inputTimeout = TimeSpan.FromMilliseconds(500);
+            inputTimeout = TimeSpan.FromMilliseconds(10); // Меньшая задержка для ввода
         }
 
         public void Start()
@@ -41,8 +39,7 @@ namespace Tanki
             while (!cancellationTokenSource.Token.IsCancellationRequested)
             {
                 UpdateGame();
-                CleanInputQueue();
-                Thread.Sleep(150); // FPS
+                Thread.Sleep(10); // Увеличенная частота обновления
             }
 
             EndGame();
@@ -52,15 +49,6 @@ namespace Tanki
         {
             gameState.Update();
             renderer.Draw(gameState);
-            ExecuteCommands();
-        }
-
-        private void CleanInputQueue()
-        {
-            if (DateTime.Now - lastInputTime > inputTimeout)
-            {
-                // Игнорируем старые команды
-            }
         }
 
         private void StartGame()
@@ -85,10 +73,10 @@ namespace Tanki
                     if (Console.KeyAvailable)
                     {
                         ConsoleKeyInfo key = Console.ReadKey(true);
-                        inputQueue.Enqueue(key.Key);
+                        HandleKeyPress(key.Key); // Обработка ввода сразу
                         lastInputTime = DateTime.Now;
                     }
-                    await Task.Delay(50, cancellationToken);
+                    await Task.Delay(10, cancellationToken); // Уменьшенная задержка для более быстрого ввода
                 }
             }
             catch (OperationCanceledException)
@@ -101,32 +89,29 @@ namespace Tanki
             }
         }
 
-        private void ExecuteCommands()
-        {
-            while (inputQueue.TryDequeue(out ConsoleKey key))
-            {
-                HandleKeyPress(key);
-            }
-        }
-
         private void HandleKeyPress(ConsoleKey key)
         {
             switch (key)
             {
                 case ConsoleKey.W:
-                    gameState.PlayerTank.Move(0, -1); // Теперь только два аргумента
+                    gameState.PlayerTank.ChangeDirection(Direction.Up);
+                    gameState.PlayerTank.Move(0, -1); // Движение вверх
                     break;
                 case ConsoleKey.S:
-                    gameState.PlayerTank.Move(0, 1);
+                    gameState.PlayerTank.ChangeDirection(Direction.Down);
+                    gameState.PlayerTank.Move(0, 1); // Движение вниз
                     break;
                 case ConsoleKey.A:
-                    gameState.PlayerTank.Move(-1, 0);
+                    gameState.PlayerTank.ChangeDirection(Direction.Left);
+                    gameState.PlayerTank.Move(-1, 0); // Движение влево
                     break;
                 case ConsoleKey.D:
-                    gameState.PlayerTank.Move(1, 0);
+                    gameState.PlayerTank.ChangeDirection(Direction.Right);
+                    gameState.PlayerTank.Move(1, 0); // Движение вправо
                     break;
                 case ConsoleKey.Spacebar:
-                    gameState.AddBullet(); // Добавление снаряда
+                    Bullet bullet = gameState.PlayerTank.Shoot(); // Стрельба
+                    gameState.Bullets.Add(bullet); // Добавление снаряда в список
                     break;
                 case ConsoleKey.Escape:
                     EndGame(); // Завершение игры

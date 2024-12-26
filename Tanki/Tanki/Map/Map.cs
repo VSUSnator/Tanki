@@ -7,9 +7,11 @@ namespace Tanki.Map
     {
         private List<MapObject> mapObjects;
         private char[,] mapState; // Представление состояния карты
+        private MapSize size; // Поле для хранения размера карты
 
-        public int Width => mapState.GetLength(0); // Ширина карты
-        public int Height => mapState.GetLength(1); // Высота карты
+        public MapSize Size => size; // Свойство для доступа к размеру карты
+        public int Width => size.Width; // Ширина карты
+        public int Height => size.Height; // Высота карты
 
         public GameMap(string filePath)
         {
@@ -20,7 +22,7 @@ namespace Tanki.Map
 
         private void InitializeMapState()
         {
-            mapState = new char[20, 15]; // Предполагаем, что размер карты 20x15
+            mapState = new char[Width, Height];
             for (int y = 0; y < Height; y++)
             {
                 for (int x = 0; x < Width; x++)
@@ -29,10 +31,9 @@ namespace Tanki.Map
                 }
             }
 
-            // Нужно убедиться, что у нас есть все нужные объекты
             foreach (var mapObject in mapObjects)
             {
-                if (mapObject.X >= 0 && mapObject.X < Width && mapObject.Y >= 0 && mapObject.Y < Height)
+                if (IsInBounds(mapObject.X, mapObject.Y))
                 {
                     mapState[mapObject.X, mapObject.Y] = mapObject.Symbol;
                 }
@@ -43,67 +44,102 @@ namespace Tanki.Map
         {
             if (File.Exists(filePath))
             {
-                var lines = File.ReadAllLines(filePath);
-                int height = lines.Length;
-
-                for (int y = 0; y < height; y++)
+                try
                 {
-                    int width = lines[y].Length;
+                    var lines = File.ReadAllLines(filePath);
+                    int height = lines.Length;
 
-                    for (int x = 0; x < width; x++)
+                    int width = 0;
+                    foreach (var line in lines)
                     {
-                        char symbol = lines[y][x];
-                        MapObject mapObject;
-
-                        switch (symbol)
+                        if (line.Length > width)
                         {
-                            case '#':
-                                mapObject = new Wall(x, y);
-                                break;
-                            case 'X':
-                                mapObject = new Obstacle(x, y);
-                                break;
-                            case '.':
-                            default:
-                                mapObject = new EmptySpace(x, y);
-                                break;
+                            width = line.Length;
                         }
-
-                        mapObjects.Add(mapObject);
                     }
+
+                    size = new MapSize(width, height);
+
+                    for (int y = 0; y < height; y++)
+                    {
+                        for (int x = 0; x < width; x++)
+                        {
+                            char symbol = (x < lines[y].Length) ? lines[y][x] : ' ';
+                            MapObject mapObject;
+
+                            switch (symbol)
+                            {
+                                case '#':
+                                    mapObject = new Wall(x, y);
+                                    break;
+                                case '█':
+                                    mapObject = new Water(x, y);
+                                    break;
+                                case '▓':
+                                    mapObject = new Obstacle(x, y);
+                                    break;
+                                case ' ':
+                                default:
+                                    mapObject = new EmptySpace(x, y);
+                                    break;
+                            }
+
+                            if (mapObject != null)
+                            {
+                                mapObjects.Add(mapObject);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Логирование или обработка ошибки
+                    Console.WriteLine($"Ошибка при загрузке карты: {ex.Message}");
                 }
             }
         }
 
         public char GetMapSymbol(int x, int y)
         {
-            if (x >= 0 && x < Width && y >= 0 && y < Height)
+            if (IsInBounds(x, y))
             {
-                return mapState[x, y]; // Теперь обращаемся к mapState
+                return mapState[x, y];
             }
-            return ' '; // Пустой символ, если вне границ
+            return ' ';
+        }
+
+        public void SetMapSymbol(int x, int y, char symbol)
+        {
+            if (IsInBounds(x, y))
+            {
+                mapState[x, y] = symbol; // Установка символа на карте
+            }
+        }
+
+        private bool IsInBounds(int x, int y)
+        {
+            return x >= 0 && x < Width && y >= 0 && y < Height;
         }
 
         public void DestroyObject(int x, int y)
         {
-            if (x >= 0 && x < Width && y >= 0 && y < Height)
+            if (IsInBounds(x, y))
             {
-                mapState[x, y] = '.'; // Заменяем символ 'X' на пустое пространство
+                mapState[x, y] = '.'; // Заменяем символ на пустое пространство
+                // Здесь можно удалить или обновить объект в mapObjects
             }
         }
 
         public bool IsWall(int x, int y)
         {
-            char symbol = GetMapSymbol(x, y);
-            return symbol == '#' || symbol == 'X'; // Предположим, что '#' и 'X' - это стены
+            return IsInBounds(x, y) && (GetMapSymbol(x, y) == '#' || GetMapSymbol(x, y) == 'X');
         }
 
         public void UpdateMapObject(MapObject mapObject)
         {
-            // Проверяем, находится ли объект в пределах карты
-            if (mapObject.X >= 0 && mapObject.X < mapState.GetLength(0) && mapObject.Y >= 0 && mapObject.Y < mapState.GetLength(1))
+            if (IsInBounds(mapObject.X, mapObject.Y))
             {
-                mapState[mapObject.X, mapObject.Y] = mapObject.Symbol; // Обновляем состояние карты
+                mapState[mapObject.X, mapObject.Y] = mapObject.Symbol;
             }
         }
     }

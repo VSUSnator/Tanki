@@ -1,16 +1,19 @@
 ﻿using System;
 using Tanki.Map;
+using static Tanki.Tank;
 
 namespace Tanki
 {
     public class Bullet : MapObject // Наследование от MapObject
     {
-        public string Direction { get; set; } // Хранит направление снаряда
+        public Direction Direction { get; set; } // Используем перечисление Direction
+        public char Symbol { get; private set; } // Символ для отображения снаряда
+        public bool IsActive { get; private set; } // Состояние снаряда (активен или нет)
 
         public Bullet(int x, int y) : base(x, y, '*') // Символ снаряда '*'
         {
-            X = x;
-            Y = y;
+            Symbol = '*'; // Установка символа по умолчанию
+            IsActive = true; // Снаряд активен при создании
         }
 
         public void Move()
@@ -18,16 +21,16 @@ namespace Tanki
             // Двигаем снаряд в зависимости от его направления
             switch (Direction)
             {
-                case "Up":
+                case Direction.Up:
                     Y -= 1;
                     break;
-                case "Down":
+                case Direction.Down:
                     Y += 1;
                     break;
-                case "Left":
+                case Direction.Left:
                     X -= 1;
                     break;
-                case "Right":
+                case Direction.Right:
                     X += 1;
                     break;
             }
@@ -38,10 +41,18 @@ namespace Tanki
             return X >= 0 && X < width && Y >= 0 && Y < height; // Проверяем, находится ли снаряд в пределах игрового поля
         }
 
+        public void Deactivate()
+        {
+            IsActive = false; // Деактивируем снаряд
+        }
+
         public override void Draw()
         {
-            Console.SetCursorPosition(X, Y);
-            Console.Write(Symbol); // Отображение снаряда
+            if (IsActive) // Отображаем только активные снаряды
+            {
+                Console.SetCursorPosition(X, Y);
+                Console.Write(Symbol); // Отображение снаряда
+            }
         }
     }
 }

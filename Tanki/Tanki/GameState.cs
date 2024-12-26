@@ -1,10 +1,19 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using Tanki.Map;
 
 namespace Tanki
 {
     public class GameState
     {
+        private DateTime lastMoveTime;
+        private TimeSpan moveDelay = TimeSpan.FromMilliseconds(300); // Задержка между перемещениями
+        private DateTime lastShootTime;
+        private TimeSpan shootDelay = TimeSpan.FromMilliseconds(900); // Задержка между выстрелами
+        private bool isShooting; // Флаг для проверки, нажата ли кнопка стрельбы
+        private bool isMoving; // Флаг для проверки, нажата ли кнопка движения
+
         public Tank PlayerTank { get; private set; }
         public List<Tank> EnemyTanks { get; private set; } // Список врагов
         public List<Bullet> Bullets { get; private set; }
@@ -14,17 +23,38 @@ namespace Tanki
         public GameState(string mapFilePath)
         {
             GameMap = new GameMap(mapFilePath); // Сначала создаем GameMap
-            PlayerTank = new Tank(1, 1, GameMap); // Теперь инициализируем PlayerTank с уже созданной GameMap
+            PlayerTank = new TankPlayer(6, 6, GameMap); // Создаем PlayerTank как TankPlayer
             EnemyTanks = new List<Tank>(); // Инициализация списка врагов
             Bullets = new List<Bullet>();
             IsGameActive = false;
+            lastMoveTime = DateTime.Now; // Инициализация времени последнего движения
+            lastShootTime = DateTime.Now; // Инициализация времени последнего выстрела
         }
 
         // Метод для добавления врага
         public void AddEnemyTank(int x, int y)
         {
-            var enemyTank = new Tank(x, y, GameMap);
+            var enemyTank = new TankEnemy(x, y, GameMap); // Создаем врага как TankEnemy
             EnemyTanks.Add(enemyTank);
+        }
+
+        private void TryShoot()
+        {
+            if (DateTime.Now - lastShootTime >= shootDelay)
+            {
+                AddBullet();
+                lastShootTime = DateTime.Now;
+                isShooting = false; // Сбрасываем флаг
+            }
+        }
+
+        public void TryMove(int dx, int dy)
+        {
+            if (DateTime.Now - lastMoveTime >= moveDelay) // Проверяем, можно ли двигаться
+            {
+                PlayerTank.Move(dx, dy); // Движение танка
+                lastMoveTime = DateTime.Now; // Обновляем время последнего движения
+            }
         }
 
         public void AddBullet()
@@ -49,6 +79,10 @@ namespace Tanki
         {
             if (IsGameActive)
             {
+                // Обработка ввода
+                HandleInput();
+
+                // Обновление снарядов
                 UpdateBullets();
             }
         }
@@ -70,7 +104,7 @@ namespace Tanki
 
         private void UpdateBullets()
         {
-            Bullets.RemoveAll(bullet => !bullet.IsInBounds(20, 15)); // Удаляем снаряды, вышедшие за пределы экрана
+            Bullets.RemoveAll(bullet => !bullet.IsInBounds(70, 70)); // Удаляем снаряды, вышедшие за пределы экрана
 
             foreach (var bullet in Bullets.ToList()) // Используем ToList чтобы избежать изменения коллекции во время итерации
             {
@@ -104,5 +138,45 @@ namespace Tanki
                 }
             }
         }
-    }   
+
+        private void HandleInput()
+        {
+            if (Console.KeyAvailable)
+            {
+                var key = Console.ReadKey(true).Key;
+
+                // Проверяем нажатие клавиши движения
+                if (key == ConsoleKey.W) // Вверх
+                {
+                    TryMove(0, -1);
+                    isMoving = true; // Устанавливаем флаг
+                }
+                else if (key == ConsoleKey.S) // Вниз
+                {
+                    TryMove(0, 1);
+                    isMoving = true; // Устанавливаем флаг
+                }
+                else if (key == ConsoleKey.A) // Влево
+                {
+                    TryMove(-1, 0);
+                    isMoving = true; // Устанавливаем флаг
+                }
+                else if (key == ConsoleKey.D) // Вправо
+                {
+                    TryMove(1, 0);
+                    isMoving = true; // Устанавливаем флаг
+                }
+                else if (key == ConsoleKey.Spacebar && !isShooting) // Стрельба
+                {
+                    TryShoot();
+                    isShooting = true; // Устанавливаем флаг
+                }
+            }
+            else
+            {
+                isMoving = false; // Сбрасываем флаг, если нет нажатий
+                isShooting = false; // Сбрасываем флаг, если нет нажатий
+            }
+        }
+    }
 }

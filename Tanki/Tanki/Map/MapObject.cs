@@ -54,6 +54,18 @@ namespace Tanki.Map
             // Пустое пространство не требует отображения
         }
     }
+    public class Water : MapObject
+    {
+        public Water(int x, int y) : base(x, y, 'W') // Символ для воды
+        {
+        }
+
+        public override void Draw()
+        {
+            Console.SetCursorPosition(X, Y);
+            Console.Write(Symbol); // Отображение воды
+        }
+    }
 }
 
 

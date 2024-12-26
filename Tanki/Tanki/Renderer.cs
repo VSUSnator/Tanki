@@ -3,7 +3,7 @@ using Tanki;
 
 namespace Tanki
 {
-    internal class Renderer
+    public class Renderer
     {
         public int width { get; private set; }
         public int height { get; private set; }
@@ -43,10 +43,13 @@ namespace Tanki
             _pixelColors = new byte[_maxWidth, _maxHeight];
         }
 
-        public void SetPixel(int w, int h, char val, byte colorIdx)
+        public void SetPixel(int x, int y, char symbol, int colorIndex)
         {
-            _pixels[w, h] = val;
-            _pixelColors[w, h] = colorIdx;
+            if (x < 0 || x >= _maxWidth || y < 0 || y >= _maxHeight || colorIndex < 0 || colorIndex >= MaxColors)
+                return; // Проверка выхода за пределы массива
+
+            _pixels[x, y] = symbol;
+            _pixelColors[x, y] = (byte)colorIndex;
         }
 
         public void Render()
@@ -74,34 +77,13 @@ namespace Tanki
             Console.CursorVisible = false;
         }
 
-        public void DrawString(string text, int atWidth, int atHeight, ConsoleColor color)
-        {
-            var colorIdx = Array.IndexOf(_colors, color);
-            if (colorIdx < 0)
-                return;
-
-            for (int i = 0; i < text.Length; i++)
-            {
-                _pixels[atWidth + i, atHeight] = text[i];
-                _pixelColors[atWidth + i, atHeight] = (byte)colorIdx;
-            }
-        }
-
-        public void Clear()
-        {
-            for (int w = 0; w < width; w++)
-                for (int h = 0; h < height; h++)
-                {
-                    _pixelColors[w, h] = 0;
-                    _pixels[w, h] = (char)0;
-                }
-        }
-
         public void DrawMap(GameState gameState)
         {
-            for (int y = 0; y < 15; y++) // Предполагаем, что карта имеет размер 20x15
+            if (gameState?.GameMap == null) return; // Проверка на null
+
+            for (int y = 0; y < 50; y++) // Изменение высоты карты на 30
             {
-                for (int x = 0; x < 20; x++)
+                for (int x = 0; x < 60; x++) // Изменение ширины карты на 40
                 {
                     char mapSymbol = gameState.GameMap.GetMapSymbol(x, y);
                     SetPixel(x, y, mapSymbol, 0); // Используйте индекс цвета 0 для карты
@@ -123,12 +105,15 @@ namespace Tanki
 
         public void DrawTank(GameState gameState)
         {
-            SetPixel(gameState.PlayerTank.X, gameState.PlayerTank.Y, 'T', 2); // Используйте индекс цвета 2 для танка
+            if (gameState?.PlayerTank != null)
+            {
+                gameState.PlayerTank.Draw(this); // Рисуем танк, передавая текущий рендерер
+            }
         }
 
         public void Draw(GameState gameState)
         {
-            Clear(); // Очистка экрана перед рисованием
+            
             DrawMap(gameState); // Рисуем карту
             DrawBullets(gameState); // Рисуем снаряды
             DrawTank(gameState); // Рисуем танк
