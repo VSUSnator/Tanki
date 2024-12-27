@@ -18,7 +18,7 @@ namespace Tanki
         public Direction CurrentDirection { get; protected set; }
         protected readonly GameMap gameMap;
 
-        private static readonly Dictionary<Direction, char[][]> TankRepresentations = new Dictionary<Direction, char[][]>
+        public static readonly Dictionary<Direction, char[][]> TankRepresentations = new Dictionary<Direction, char[][]>
         {
             { Direction.Up, new char[][] { new char[] { '▲', '█' }, new char[] { 'О', '█' } } },
             { Direction.Down, new char[][] { new char[] { 'О', '█' }, new char[] { '▼', '█' } } },
@@ -26,22 +26,46 @@ namespace Tanki
             { Direction.Right, new char[][] { new char[] { 'О', '►' }, new char[] { '█', '█' } } },
         };
 
+        private ActionDelay moveDelay;
+        private ActionDelay shootDelay;
+
         protected Tank(int x, int y, GameMap map)
         {
             X = x;
             Y = y;
             CurrentDirection = Direction.Up;
             gameMap = map;
+
+            moveDelay = new ActionDelay(TimeSpan.FromMilliseconds(300)); // Задержка для перемещения
+            shootDelay = new ActionDelay(TimeSpan.FromMilliseconds(900)); // Задержка для стрельбы
         }
 
         public void Move(int dx, int dy)
         {
-            if (CanMove(dx, dy))
+            if (moveDelay.CanPerformAction() && CanMove(dx, dy))
             {
                 X += dx;
                 Y += dy;
                 CurrentDirection = GetDirection(dx, dy);
+                moveDelay.Reset(); // Сбрасываем задержку при успешном перемещении
             }
+        }
+
+        public Bullet Shoot()
+        {
+            if (shootDelay.CanPerformAction())
+            {
+                Bullet bullet = new Bullet(X + 1, Y + 1) { Direction = CurrentDirection }; // Снаряд появляется от центра танка
+                shootDelay.Reset(); // Сбрасываем задержку при успешной стрельбе
+                return bullet;
+            }
+            return null; // Возвращаем null, если стрельба не возможна
+        }
+
+        public bool IsHit(int x, int y)
+        {
+            // Проверяем, совпадают ли координаты с танком
+            return this.X == x && this.Y == y;
         }
 
         private Direction GetDirection(int dx, int dy) =>
@@ -68,14 +92,8 @@ namespace Tanki
         private bool IsInBounds(int x, int y) =>
             x >= 0 && x < gameMap.Width && y >= 0 && y < gameMap.Height;
 
-        private bool IsObstacle(int x, int y) =>
+        protected bool IsObstacle(int x, int y) =>
             gameMap.GetMapSymbol(x, y) is '#' or 'W' or 'X';
-
-        public Bullet Shoot()
-        {
-            Bullet bullet = new Bullet(X + 1, Y + 1) { Direction = CurrentDirection }; // Снаряд появляется от центра танка
-            return bullet;
-        }
 
         public void ChangeDirection(Direction newDirection) => CurrentDirection = newDirection;
 

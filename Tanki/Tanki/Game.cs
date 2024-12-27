@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,7 +32,7 @@ namespace Tanki
         {
             cancellationTokenSource = new CancellationTokenSource();
             StartGame();
-            Task.Run(() => ProcessInputAsync(cancellationTokenSource.Token));
+            Task inputTask = Task.Run(() => ProcessInputAsync(cancellationTokenSource.Token));
 
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -43,18 +44,34 @@ namespace Tanki
             }
 
             EndGame();
+            // Ждем завершения задачи обработки ввода
+            inputTask.Wait();
         }
 
         private void UpdateGame()
         {
-            gameState.Update();
-            renderer.Draw(gameState);
+            gameState.Update(); // Обновляем состояние игры
+            renderer.Draw(gameState); // Отрисовываем всё на экране
         }
 
         private void StartGame()
         {
             gameState.StartGame();
             Console.WriteLine("Игра началась! Нажмите ESC для выхода.");
+
+            // Инициализация врагов
+            InitializeEnemies();
+        }
+
+        private void InitializeEnemies()
+        {
+            // Пример: добавляем 3 врага на карту
+            for (int i = 0; i < 3; i++)
+            {
+                int x = i * 2; // Простая логика для размещения врагов
+                int y = i * 2; // Вы можете изменить это на более сложную логику
+                gameState.Enemies.Add(new TankEnemy(x, y, gameState.GameMap));
+            }
         }
 
         private void EndGame()

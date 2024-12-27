@@ -95,8 +95,7 @@ namespace Tanki
         {
             foreach (Bullet bullet in gameState.Bullets)
             {
-                // Проверка, находится ли снаряд в пределах экрана
-                if (bullet.X >= 0 && bullet.X < width && bullet.Y >= 0 && bullet.Y < height)
+                if (bullet != null && bullet.X >= 0 && bullet.X < width && bullet.Y >= 0 && bullet.Y < height)
                 {
                     SetPixel(bullet.X, bullet.Y, bullet.Symbol, 1); // Используйте индекс цвета 1 для снарядов
                 }
