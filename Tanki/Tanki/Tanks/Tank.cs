@@ -97,14 +97,14 @@ namespace Tanki
 
         public void ChangeDirection(Direction newDirection) => CurrentDirection = newDirection;
 
-        public void Draw(Renderer renderer)
+        public virtual void Draw(Renderer renderer)
         {
             char[][] tankRepresentation = TankRepresentations[CurrentDirection];
             for (int i = 0; i < tankRepresentation.Length; i++)
             {
                 for (int j = 0; j < tankRepresentation[i].Length; j++)
                 {
-                    renderer.SetPixel(X + j, Y + i, tankRepresentation[i][j], 2);
+                    renderer.SetPixel(X + j, Y + i, tankRepresentation[i][j], 2); // Цвет для танков
                 }
             }
         }

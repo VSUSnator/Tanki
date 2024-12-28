@@ -18,34 +18,26 @@ namespace Tanki
         public List<Bullet> Bullets { get; private set; }
         public GameMap GameMap { get; private set; }
         public bool IsGameActive { get; private set; }
-        public List<TankEnemy> Enemies { get; set; }
 
         public GameState(string mapFilePath)
         {
-            GameMap = new GameMap(mapFilePath); // Создаем GameMap
-            PlayerTank = new TankPlayer(6, 6, GameMap, this); // Передаем GameState в конструктор TankPlayer
-            EnemyTanks = new List<Tank>(); // Инициализация списка врагов
-            Enemies = new List<TankEnemy>();
+            GameMap = new GameMap(mapFilePath);
+            PlayerTank = new TankPlayer(6, 6, GameMap, this);
+            EnemyTanks = new List<Tank>();
             Bullets = new List<Bullet>();
             IsGameActive = false;
+
+            // Создаем нескольких врагов
+            for (int i = 0; i < 2; i++) // Например, 5 врагов
+            {
+                int enemyX = new Random().Next(0, GameMap.Width);
+                int enemyY = new Random().Next(0, GameMap.Height);
+                EnemyTanks.Add(new TankEnemy(enemyX, enemyY, GameMap, this)); // Передаем gameState
+            }
 
             // Инициализация задержек
             moveDelay = new ActionDelay(TimeSpan.FromMilliseconds(300));
             shootDelay = new ActionDelay(TimeSpan.FromMilliseconds(900));
-        }
-
-        // Метод для добавления врага
-        public void AddEnemyTank(int x, int y)
-        {
-            var enemyTank = new TankEnemy(x, y, GameMap); // Создаем врага как TankEnemy
-            EnemyTanks.Add(enemyTank);
-        }
-
-        public void InitializeEnemies()
-        {
-            // Пример создания врагов на карте
-            Enemies.Add(new TankEnemy(5, 5, GameMap));
-            Enemies.Add(new TankEnemy(10, 10, GameMap));
         }
 
         public void StartGame()
@@ -102,17 +94,22 @@ namespace Tanki
             if (IsGameActive)
             {
                 // Обработка ввода для игрока
-                // Мы вызываем HandleInput только для PlayerTank, который является TankPlayer
                 if (PlayerTank is TankPlayer playerTank)
                 {
-                    playerTank.HandleInput(); // Обработка ввода для игрока
+                    playerTank.HandleInput();
                 }
-                foreach (var enemy in Enemies)
-                {
-                    enemy.Update(this); // Обновляем каждого врага
-                }
+
                 // Обновление снарядов
                 UpdateBullets();
+
+                // Обновление врагов
+                foreach (var enemy in EnemyTanks)
+                {
+                    if (enemy is TankEnemy tankEnemy)
+                    {
+                        tankEnemy.Update(); // Обновляем врага
+                    }
+                }
             }
         }
 
@@ -142,16 +139,6 @@ namespace Tanki
                     Bullets.Remove(bullet); // Удаляем пулю, если она попала в врага
                     continue;
                 }
-            }
-        }
-
-        public void Draw(Renderer renderer)
-        {
-            PlayerTank?.Draw(renderer); // Отрисовка игрока
-
-            foreach (var enemy in Enemies)
-            {
-                enemy.Draw(renderer); // Отрисовка врагов
             }
         }
 

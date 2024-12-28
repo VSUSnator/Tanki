@@ -58,20 +58,6 @@ namespace Tanki
         {
             gameState.StartGame();
             Console.WriteLine("Игра началась! Нажмите ESC для выхода.");
-
-            // Инициализация врагов
-            InitializeEnemies();
-        }
-
-        private void InitializeEnemies()
-        {
-            // Пример: добавляем 3 врага на карту
-            for (int i = 0; i < 3; i++)
-            {
-                int x = i * 2; // Простая логика для размещения врагов
-                int y = i * 2; // Вы можете изменить это на более сложную логику
-                gameState.Enemies.Add(new TankEnemy(x, y, gameState.GameMap));
-            }
         }
 
         private void EndGame()
@@ -106,7 +92,7 @@ namespace Tanki
             }
         }
 
-        private void HandleKeyPress(ConsoleKey key)
+        public void HandleKeyPress(ConsoleKey key)
         {
             switch (key)
             {
@@ -128,7 +114,10 @@ namespace Tanki
                     break;
                 case ConsoleKey.Spacebar:
                     Bullet bullet = gameState.PlayerTank.Shoot(); // Стрельба
-                    gameState.Bullets.Add(bullet); // Добавление снаряда в список
+                    if (bullet != null) // Проверяем, что пуля не null
+                    {
+                        gameState.Bullets.Add(bullet); // Добавление снаряда в список
+                    }
                     break;
                 case ConsoleKey.Escape:
                     EndGame(); // Завершение игры

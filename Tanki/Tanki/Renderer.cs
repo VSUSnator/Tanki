@@ -102,6 +102,17 @@ namespace Tanki
             }
         }
 
+        public void DrawEnemies(GameState gameState)
+        {
+            foreach (var enemyTank in gameState.EnemyTanks)
+            {
+                if (enemyTank != null)
+                {
+                    enemyTank.Draw(this); // Рисуем врага, передавая текущий рендерер
+                }
+            }
+        }
+
         public void DrawTank(GameState gameState)
         {
             if (gameState?.PlayerTank != null)
@@ -112,10 +123,10 @@ namespace Tanki
 
         public void Draw(GameState gameState)
         {
-            
             DrawMap(gameState); // Рисуем карту
             DrawBullets(gameState); // Рисуем снаряды
             DrawTank(gameState); // Рисуем танк
+            DrawEnemies(gameState); // Рисуем врагов
             Render(); // Отображаем всё на экране
         }
 
