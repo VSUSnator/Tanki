@@ -7,7 +7,7 @@ namespace Tanki
     public class Bullet : MapObject // Наследование от MapObject
     {
         public Direction Direction { get; set; } // Используем перечисление Direction
-        public char Symbol { get; private set; } // Символ для отображения снаряда
+        public new char Symbol { get; private set; } // Символ для отображения снаряда
         public bool IsActive { get; private set; } // Состояние снаряда (активен или нет)
 
         public Bullet(int x, int y) : base(x, y, '*') // Символ снаряда '*'

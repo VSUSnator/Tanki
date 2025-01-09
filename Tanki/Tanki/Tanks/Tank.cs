@@ -18,7 +18,7 @@ namespace Tanki
         public Direction CurrentDirection { get; protected set; }
         protected readonly GameMap gameMap;
 
-        public static readonly Dictionary<Direction, char[][]> TankRepresentations = new Dictionary<Direction, char[][]>
+        protected static readonly Dictionary<Direction, char[][]> TankRepresentations = new()
         {
             { Direction.Up, new char[][] { new char[] { '▲', '█' }, new char[] { 'О', '█' } } },
             { Direction.Down, new char[][] { new char[] { 'О', '█' }, new char[] { '▼', '█' } } },
@@ -26,8 +26,8 @@ namespace Tanki
             { Direction.Right, new char[][] { new char[] { 'О', '►' }, new char[] { '█', '█' } } },
         };
 
-        private ActionDelay moveDelay;
-        private ActionDelay shootDelay;
+        private readonly ActionDelay moveDelay = new(TimeSpan.FromMilliseconds(300));
+        private readonly ActionDelay shootDelay = new(TimeSpan.FromMilliseconds(900));
 
         protected Tank(int x, int y, GameMap map)
         {
@@ -35,9 +35,6 @@ namespace Tanki
             Y = y;
             CurrentDirection = Direction.Up;
             gameMap = map;
-
-            moveDelay = new ActionDelay(TimeSpan.FromMilliseconds(300)); // Задержка для перемещения
-            shootDelay = new ActionDelay(TimeSpan.FromMilliseconds(900)); // Задержка для стрельбы
         }
 
         public void Move(int dx, int dy)
@@ -47,25 +44,41 @@ namespace Tanki
                 X += dx;
                 Y += dy;
                 CurrentDirection = GetDirection(dx, dy);
-                moveDelay.Reset(); // Сбрасываем задержку при успешном перемещении
+                moveDelay.Reset();
             }
         }
 
         public Bullet Shoot()
         {
-            if (shootDelay.CanPerformAction())
+            if (!shootDelay.CanPerformAction()) return null;
+
+            Bullet bullet = CreateBullet();
+            bullet.Direction = CurrentDirection;
+            shootDelay.Reset();
+            return bullet;
+        }
+
+        private Bullet CreateBullet()
+        {
+            return CurrentDirection switch
             {
-                Bullet bullet = new Bullet(X + 1, Y + 1) { Direction = CurrentDirection }; // Снаряд появляется от центра танка
-                shootDelay.Reset(); // Сбрасываем задержку при успешной стрельбе
-                return bullet;
-            }
-            return null; // Возвращаем null, если стрельба не возможна
+                Direction.Up => new Bullet(X + 1, Y),
+                Direction.Down => new Bullet(X + 1, Y + 1),
+                Direction.Left => new Bullet(X, Y + 1),
+                Direction.Right => new Bullet(X + 1, Y + 1),
+                _ => null
+            };
         }
 
         public bool IsHit(int x, int y)
         {
-            // Проверяем, совпадают ли координаты с танком
             return this.X == x && this.Y == y;
+        }
+
+        public bool IsHitByBullet(Bullet bullet)
+        {
+            return bullet.X >= X && bullet.X <= X + 1 &&
+                   bullet.Y >= Y && bullet.Y <= Y + 1;
         }
 
         private Direction GetDirection(int dx, int dy) =>
@@ -77,8 +90,6 @@ namespace Tanki
         {
             int newX = X + dx;
             int newY = Y + dy;
-
-            // Проверяем коллизию для 2x2 танка
             return IsInBounds(newX, newY) &&
                    IsInBounds(newX + 1, newY) &&
                    IsInBounds(newX, newY + 1) &&
@@ -104,7 +115,7 @@ namespace Tanki
             {
                 for (int j = 0; j < tankRepresentation[i].Length; j++)
                 {
-                    renderer.SetPixel(X + j, Y + i, tankRepresentation[i][j], 2); // Цвет для танков
+                    renderer.SetPixel(X + j, Y + i, tankRepresentation[i][j], 2);
                 }
             }
         }

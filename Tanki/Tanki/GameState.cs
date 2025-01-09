@@ -11,13 +11,21 @@ namespace Tanki
     {
         private ActionDelay moveDelay; // Задержка между перемещениями
         private ActionDelay shootDelay; // Задержка между выстрелами
-        private bool isShooting; // Флаг для проверки, нажата ли кнопка стрельбы
 
         public Tank PlayerTank { get; private set; }
         public List<Tank> EnemyTanks { get; private set; } // Список врагов
         public List<Bullet> Bullets { get; private set; }
         public GameMap GameMap { get; private set; }
         public bool IsGameActive { get; private set; }
+
+        // Предопределенные позиции для врагов
+        private List<(int X, int Y)> enemySpawnPositions = new List<(int, int)>
+        {
+            /*(1, 1), (2, 1),*/ (18, 15) // Примеры координат
+            /*(1, 3), (2, 3),*/ 
+            /*(5, 5), (6, 5),*/ 
+            // Добавьте здесь другие координаты по желанию
+        };
 
         public GameState(string mapFilePath)
         {
@@ -28,11 +36,11 @@ namespace Tanki
             IsGameActive = false;
 
             // Создаем нескольких врагов
-            for (int i = 0; i < 2; i++) // Например, 5 врагов
+            for (int i = 0; i < 2; i++) // Например, 2 врага
             {
-                int enemyX = new Random().Next(0, GameMap.Width);
-                int enemyY = new Random().Next(0, GameMap.Height);
-                EnemyTanks.Add(new TankEnemy(enemyX, enemyY, GameMap, this)); // Передаем gameState
+                // Выбираем случайную позицию из списка заранее заданных
+                var spawnPosition = enemySpawnPositions[new Random().Next(enemySpawnPositions.Count)];
+                EnemyTanks.Add(new TankEnemy(spawnPosition.X, spawnPosition.Y, GameMap, this)); // Передаем gameState
             }
 
             // Инициализация задержек
@@ -43,7 +51,6 @@ namespace Tanki
         public void StartGame()
         {
             IsGameActive = true;
-            // Дополнительная логика инициализации
         }
 
         public void TryMove(int dx, int dy)
@@ -75,11 +82,13 @@ namespace Tanki
 
         private bool CheckCollisionWithEnemies(Bullet bullet)
         {
-            var hitEnemies = EnemyTanks.Where(enemyTank => enemyTank.IsHit(bullet.X, bullet.Y)).ToList();
+            var hitEnemies = EnemyTanks.Where(enemyTank => enemyTank.IsHitByBullet(bullet)).ToList();
+
             foreach (var enemyTank in hitEnemies)
             {
-                EnemyTanks.Remove(enemyTank); // Удаляем врага (при необходимости)
+                /*EnemyTanks.Remove(enemyTank);*/ // Удаляем врага (при необходимости)
             }
+
             return hitEnemies.Count > 0; // Возвращаем true, если есть столкновение
         }
 
@@ -89,7 +98,7 @@ namespace Tanki
             // Логика завершения, например, сохранение результатов
         }
 
-        public void Update()
+        public void Update(TimeSpan gameTime)
         {
             if (IsGameActive)
             {
@@ -99,17 +108,49 @@ namespace Tanki
                     playerTank.HandleInput();
                 }
 
-                // Обновление снарядов
-                UpdateBullets();
-
                 // Обновление врагов
                 foreach (var enemy in EnemyTanks)
                 {
                     if (enemy is TankEnemy tankEnemy)
                     {
-                        tankEnemy.Update(); // Обновляем врага
+                        // Передаем gameTime в метод Update врага
+                        tankEnemy.Update(gameTime); // Теперь передаем аргумент
                     }
                 }
+
+                // Обновление снарядов
+                UpdateBullets();
+            }
+        }
+
+        public List<Tank> GetAllTanks()
+        {
+            // Предполагается, что у вас есть список всех танков в состоянии игры
+            return new List<Tank> { PlayerTank /* , другие танки */ };
+        }
+
+        private void MoveEnemyTowardsPlayer(TankEnemy enemy)
+        {
+            int dx = PlayerTank.X - enemy.X;
+            int dy = PlayerTank.Y - enemy.Y;
+
+            // Нормализуем направление движения
+            if (Math.Abs(dx) > Math.Abs(dy))
+            {
+                dx = dx > 0 ? 1 : -1; // Движение по оси X
+                dy = 0; // Не двигаться по оси Y
+            }
+            else
+            {
+                dy = dy > 0 ? 1 : -1; // Движение по оси Y
+                dx = 0; // Не двигаться по оси X
+            }
+
+            // Проверка коллизий перед перемещением
+            if (!GameMap.IsWall(enemy.X + dx, enemy.Y + dy) &&
+                !(PlayerTank.X == enemy.X + dx && PlayerTank.Y == enemy.Y + dy)) // Проверка на столкновение с игроком
+            {
+                enemy.Move(dx, dy); // Движение врага
             }
         }
 
@@ -125,9 +166,7 @@ namespace Tanki
                 // Проверяем, является ли текущая позиция пулей стеной
                 if (GameMap.IsWall(bullet.X, bullet.Y))
                 {
-                    // Логика разрушения стен
                     HandleWallDestruction(bullet);
-
                     Bullets.Remove(bullet); // Удаляем снаряд после проверки
                     continue;
                 }
@@ -135,9 +174,15 @@ namespace Tanki
                 // Проверка на столкновение с врагами
                 if (CheckCollisionWithEnemies(bullet))
                 {
-                    // Логика обработки столкновения с врагами
                     Bullets.Remove(bullet); // Удаляем пулю, если она попала в врага
                     continue;
+                }
+
+                // Проверка на столкновение с игроком, если у вас есть игрок
+                if (PlayerTank.IsHitByBullet(bullet))
+                {
+                    Bullets.Remove(bullet); // Удаляем пулю, если она попала в игрока
+                                            // Здесь можно добавить логику, например, уменьшение здоровья игрока
                 }
             }
         }

@@ -15,6 +15,7 @@ namespace Tanki
         private CancellationTokenSource cancellationTokenSource;
         private DateTime lastInputTime;
         private TimeSpan inputTimeout;
+        private Stopwatch stopwatch; // Добавлен для отслеживания времени
 
         public Game()
         {
@@ -26,6 +27,8 @@ namespace Tanki
 
             lastInputTime = DateTime.Now;
             inputTimeout = TimeSpan.FromMilliseconds(10); // Меньшая задержка для ввода
+            stopwatch = new Stopwatch(); // Инициализируем Stopwatch
+            cancellationTokenSource = new CancellationTokenSource();
         }
 
         public void Start()
@@ -34,8 +37,7 @@ namespace Tanki
             StartGame();
             Task inputTask = Task.Run(() => ProcessInputAsync(cancellationTokenSource.Token));
 
-            Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
+            stopwatch.Start(); // Запускаем таймер
 
             while (!cancellationTokenSource.Token.IsCancellationRequested)
             {
@@ -50,7 +52,10 @@ namespace Tanki
 
         private void UpdateGame()
         {
-            gameState.Update(); // Обновляем состояние игры
+            TimeSpan elapsedTime = stopwatch.Elapsed; // Получаем прошедшее время
+            stopwatch.Restart(); // Перезапускаем таймер для следующего обновления
+
+            gameState.Update(elapsedTime); // Передаем elapsedTime в метод Update
             renderer.Draw(gameState); // Отрисовываем всё на экране
         }
 
