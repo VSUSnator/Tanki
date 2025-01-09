@@ -1,21 +1,24 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace Tanki.Map
 {
     public class GameMap
     {
         private List<MapObject> mapObjects;
+        private List<Tank> tanks; // Новый список для хранения танков
         private char[,] mapState; // Представление состояния карты
         private MapSize size; // Поле для хранения размера карты
 
         public MapSize Size => size; // Свойство для доступа к размеру карты
         public int Width => size.Width; // Ширина карты
-        public int Height => size.Height; // Высота карты
+        public int Height => size.Height;
 
         public GameMap(string filePath)
         {
             mapObjects = new List<MapObject>();
+            tanks = new List<Tank>(); // Инициализация списка танков
             LoadMap(filePath);
             InitializeMapState();
         }
@@ -141,6 +144,24 @@ namespace Tanki.Map
             {
                 mapState[mapObject.X, mapObject.Y] = mapObject.Symbol;
             }
+        }
+
+        public void RemoveTank(Tank tank)
+        {
+            // Удаление танка из списка всех танков в игре
+            tanks.Remove(tank); // Теперь tanks определен как список танков
+        }
+
+        // Новый метод для получения всех танков
+        public List<Tank> GetAllTanks()
+        {
+            return tanks; // Возвращаем список танков
+        }
+
+        // Метод для добавления танка в игру (вы можете использовать его, когда создаете танк)
+        public void AddTank(Tank tank)
+        {
+            tanks.Add(tank);
         }
     }
 }

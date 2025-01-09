@@ -7,7 +7,7 @@ public interface ITank : IMovable
     int X { get; } // Координата X
     int Y { get; } // Координата Y
 
-    Bullet Shoot();
+    Bullet? Shoot();
     void ChangeDirection(Direction newDirection);
     void Draw(Renderer renderer);
 }

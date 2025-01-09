@@ -1,0 +1,29 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Tanki.Map
+{
+    public class mapLoader
+    {
+        private readonly List<string> mapFiles;
+        private int currentMapIndex;
+
+        public mapLoader(List<string> mapFiles)
+        {
+            this.mapFiles = mapFiles;
+            currentMapIndex = 0;
+        }
+
+        public string GetNextMap()
+        {
+            if (currentMapIndex < mapFiles.Count)
+            {
+                return mapFiles[currentMapIndex++];
+            }
+            return null; // Если карты закончились
+        }
+    }
+}

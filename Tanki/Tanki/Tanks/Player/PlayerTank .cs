@@ -1,47 +1,40 @@
-﻿using Tanki;
-using Tanki.Map;
+﻿using Tanki.Map;
 using static Tanki.Tank;
 
-public class TankPlayer : Tank
+namespace Tanki
 {
-    private GameState gameState; // Ссылка на GameState
-
-    public TankPlayer(int x, int y, GameMap map, GameState gameState) : base(x, y, map)
+    public class TankPlayer : Tank
     {
-        this.gameState = gameState; // Инициализируем GameState
-    }
+        private GameState gameState; // Ссылка на GameState
 
-    // Метод для обработки ввода игрока
-    public void HandleInput()
-    {
-        if (Console.KeyAvailable)
+        public TankPlayer(int x, int y, GameMap map, GameState gameState) : base(x, y, map)
         {
-            var key = Console.ReadKey(true).Key;
+            this.gameState = gameState; // Инициализируем GameState
+            lives = 3; // Изначально 3 жизни
+        }
 
-            switch (key)
+        public void HandleInput()
+        {
+            // Если танк уничтожен, то игрок не может управлять им
+            if (IsDestroyed) return;
+
+            if (Console.KeyAvailable)
             {
-                case ConsoleKey.W: // Движение вверх
-                    gameState.TryMove(0, -1);
-                    ChangeDirection(Direction.Up);
-                    break;
-                case ConsoleKey.S: // Движение вниз
-                    gameState.TryMove(0, 1);
-                    ChangeDirection(Direction.Down);
-                    break;
-                case ConsoleKey.A: // Движение влево
-                    gameState.TryMove(-1, 0);
-                    ChangeDirection(Direction.Left);
-                    break;
-                case ConsoleKey.D: // Движение вправо
-                    gameState.TryMove(1, 0);
-                    ChangeDirection(Direction.Right);
-                    break;
-                case ConsoleKey.Spacebar: // Стрельба
-                    gameState.TryShoot();
-                    break;
-                case ConsoleKey.Escape: // Завершение игры
-                    gameState.EndGame(); // Добавьте логику завершения игры, если это необходимо
-                    break;
+                var key = Console.ReadKey(true).Key;
+                int dx = 0, dy = 0;
+
+                switch (key)
+                {
+                    case ConsoleKey.W: dy = -1; ChangeDirection(Direction.Up); break;
+                    case ConsoleKey.S: dy = 1; ChangeDirection(Direction.Down); break;
+                    case ConsoleKey.A: dx = -1; ChangeDirection(Direction.Left); break;
+                    case ConsoleKey.D: dx = 1; ChangeDirection(Direction.Right); break;
+                    case ConsoleKey.Spacebar: Shoot(); break; // Стрельба
+                    case ConsoleKey.Escape: gameState.EndGame(); break; // Завершение игры
+                }
+
+                // Выполняем движение, если есть изменения
+                Move(dx, dy);
             }
         }
     }

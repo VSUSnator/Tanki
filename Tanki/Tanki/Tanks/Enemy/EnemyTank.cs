@@ -57,6 +57,83 @@ namespace Tanki
             {
                 MoveInCorridor();
             }
+
+            if (CanSeePlayer())
+            {
+                ShootAtPlayer();
+            }
+        }
+
+        private bool CanSeePlayer()
+        {
+            int playerX = gameState.PlayerTank.X;
+            int playerY = gameState.PlayerTank.Y;
+
+            // Проверяем, находится ли игрок на одной линии с танком
+            if (X == playerX)
+            {
+                // Игрок выше или ниже
+                return (Y < playerY && IsPathClear(X, Y + 1, playerY)) ||
+                       (Y > playerY && IsPathClear(X, playerY, Y - 1));
+            }
+            else if (Y == playerY)
+            {
+                // Игрок справа или слева
+                return (X < playerX && IsPathClear(X + 1, Y, playerX)) ||
+                       (X > playerX && IsPathClear(playerX, Y, X - 1));
+            }
+
+            return false;
+        }
+
+        private bool IsPathClear(int startX, int startY, int endX)
+        {
+            int step = startX < endX ? 1 : -1;
+
+            for (int x = startX; x != endX; x += step)
+            {
+                if (IsObstacle(x, startY)) // Проверка на препятствия
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private void ShootAtPlayer()
+        {
+            // Логика стрельбы
+            Bullet bullet = Shoot(); // Предполагается, что метод Shoot() возвращает снаряд
+            if (bullet != null)
+            {
+                gameState.Bullets.Add(bullet); // Добавляем снаряд в список пуль игры
+            }
+        }
+
+        private bool CanMoveTo(Node targetNode)
+        {
+            // Проверяем, находится ли узел в пределах карты
+            if (!IsInBounds(targetNode.X, targetNode.Y))
+            {
+                return false;
+            }
+
+            // Проверяем, является ли целевая позиция препятствием
+            if (IsObstacle(targetNode.X, targetNode.Y))
+            {
+                return false;
+            }
+
+            // Проверяем дополнительные клетки, если танк больше 1x1
+            if (gameMap.GetMapSymbol(targetNode.X + 1, targetNode.Y) is '#' or 'W' or 'X' || // Право
+                gameMap.GetMapSymbol(targetNode.X, targetNode.Y + 1) is '#' or 'W' or 'X' || // Вниз
+                gameMap.GetMapSymbol(targetNode.X + 1, targetNode.Y + 1) is '#' or 'W' or 'X') // Право вниз
+            {
+                return false;
+            }
+
+            return true; // Если все проверки пройдены, движение возможно
         }
 
         private void MoveTo(Node targetNode)
@@ -76,6 +153,7 @@ namespace Tanki
                 dx = 0;
             }
 
+            // Проверяем коллизии перед движением
             if (CanMove(dx, dy) && !visitedNodes.Contains(targetNode))
             {
                 Move(dx, dy);
@@ -86,6 +164,19 @@ namespace Tanki
                     currentTargetIndex++;
                 }
             }
+        }
+
+        private bool IsCollidingWithAnotherTank(int dx, int dy)
+        {
+            // Проверяем на столкновение с другими танками
+            foreach (var enemyTank in gameMap.GetAllTanks())
+            {
+                if (enemyTank != this && enemyTank.IsCollidingWithTank(X + dx, Y + dy))
+                {
+                    return true; // Обнаружена коллизия
+                }
+            }
+            return false;
         }
 
         private void MoveInCorridor()
@@ -190,30 +281,7 @@ namespace Tanki
             return totalPath;
         }
 
-        private bool CanMoveTo(Node targetNode)
-        {
-            // Проверяем, находится ли узел в пределах карты
-            if (!IsInBounds(targetNode.X, targetNode.Y))
-            {
-                return false;
-            }
-
-            // Проверяем, является ли целевая позиция препятствием
-            if (IsObstacle(targetNode.X, targetNode.Y))
-            {
-                return false;
-            }
-
-            // Проверяем дополнительные клетки, если танк больше 1x1
-            if (gameMap.GetMapSymbol(targetNode.X + 1, targetNode.Y) is '#' or 'W' or 'X' || // Право
-                gameMap.GetMapSymbol(targetNode.X, targetNode.Y + 1) is '#' or 'W' or 'X' || // Вниз
-                gameMap.GetMapSymbol(targetNode.X + 1, targetNode.Y + 1) is '#' or 'W' or 'X') // Право вниз
-            {
-                return false;
-            }
-
-            return true; // Если все проверки пройдены, движение возможно
-        }
+        
 
         private bool IsInBounds(int x, int y)
         {
@@ -240,30 +308,6 @@ namespace Tanki
                     }
                 }
             }
-        }
-    }
-
-    public class Node
-    {
-        public int X { get; }
-        public int Y { get; }
-        public Node? Parent { get; set; }
-
-        public Node(int x, int y)
-        {
-            X = x;
-            Y = y;
-            Parent = null;
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is Node other && X == other.X && Y == other.Y;
-        }
-
-        public override int GetHashCode()
-        {
-            return (X, Y).GetHashCode();
         }
     }
 }

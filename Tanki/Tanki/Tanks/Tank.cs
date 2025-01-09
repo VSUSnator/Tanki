@@ -17,6 +17,8 @@ namespace Tanki
         public int Y { get; protected set; }
         public Direction CurrentDirection { get; protected set; }
         protected readonly GameMap gameMap;
+        protected int lives;
+        public bool IsDestroyed { get; private set; }
 
         protected static readonly Dictionary<Direction, char[][]> TankRepresentations = new()
         {
@@ -35,12 +37,15 @@ namespace Tanki
             Y = y;
             CurrentDirection = Direction.Up;
             gameMap = map;
+            lives = 1;
         }
 
         public void Move(int dx, int dy)
         {
+            // Проверяем возможность движения, включая коллизии
             if (moveDelay.CanPerformAction() && CanMove(dx, dy))
             {
+                // Обновляем позицию
                 X += dx;
                 Y += dy;
                 CurrentDirection = GetDirection(dx, dy);
@@ -48,17 +53,56 @@ namespace Tanki
             }
         }
 
-        public Bullet Shoot()
+        public bool CanMove(int dx, int dy)
+        {
+            int newX = X + dx;
+            int newY = Y + dy;
+
+            // Проверяем, находится ли новая позиция в пределах карты
+            if (!IsInBounds(newX, newY) || !IsInBounds(newX + 1, newY) ||
+                !IsInBounds(newX, newY + 1) || !IsInBounds(newX + 1, newY + 1))
+            {
+                return false; // Выход за пределы карты
+            }
+
+            // Проверяем, есть ли препятствия на новой позиции
+            if (IsObstacle(newX, newY) ||
+                IsObstacle(newX + 1, newY) ||
+                IsObstacle(newX, newY + 1) ||
+                IsObstacle(newX + 1, newY + 1))
+            {
+                return false; // Есть препятствия
+            }
+
+            // Проверяем коллизии с другими танками
+            foreach (var enemyTank in gameMap.GetAllTanks())
+            {
+                if (enemyTank != this && enemyTank.IsCollidingWithTank(newX, newY))
+                {
+                    return false; // Обнаружена коллизия с другим танком
+                }
+            }
+
+            return true; // Движение возможно
+        }
+
+        public bool IsCollidingWithTank(int x, int y)
+        {
+            // Проверка на пересечение с другим танком
+            return x >= X && x <= X + 1 && y >= Y && y <= Y + 1;
+        }
+
+        public Bullet? Shoot()
         {
             if (!shootDelay.CanPerformAction()) return null;
 
-            Bullet bullet = CreateBullet();
+            Bullet? bullet = CreateBullet();
             bullet.Direction = CurrentDirection;
             shootDelay.Reset();
             return bullet;
         }
 
-        private Bullet CreateBullet()
+        private Bullet? CreateBullet()
         {
             return CurrentDirection switch
             {
@@ -75,30 +119,10 @@ namespace Tanki
             return this.X == x && this.Y == y;
         }
 
-        public bool IsHitByBullet(Bullet bullet)
-        {
-            return bullet.X >= X && bullet.X <= X + 1 &&
-                   bullet.Y >= Y && bullet.Y <= Y + 1;
-        }
-
         private Direction GetDirection(int dx, int dy) =>
             dy < 0 ? Direction.Up :
             dy > 0 ? Direction.Down :
             dx < 0 ? Direction.Left : Direction.Right;
-
-        public bool CanMove(int dx, int dy)
-        {
-            int newX = X + dx;
-            int newY = Y + dy;
-            return IsInBounds(newX, newY) &&
-                   IsInBounds(newX + 1, newY) &&
-                   IsInBounds(newX, newY + 1) &&
-                   IsInBounds(newX + 1, newY + 1) &&
-                   !IsObstacle(newX, newY) &&
-                   !IsObstacle(newX + 1, newY) &&
-                   !IsObstacle(newX, newY + 1) &&
-                   !IsObstacle(newX + 1, newY + 1);
-        }
 
         private bool IsInBounds(int x, int y) =>
             x >= 0 && x < gameMap.Width && y >= 0 && y < gameMap.Height;
@@ -108,8 +132,38 @@ namespace Tanki
 
         public void ChangeDirection(Direction newDirection) => CurrentDirection = newDirection;
 
+        public void TakeDamage()
+        {
+            if (IsDestroyed) return; // Если танк уже уничтожен, ничего не делаем
+
+            lives--; // Уменьшаем количество жизней
+            if (lives <= 0)
+            {
+                IsDestroyed = true; // Устанавливаем состояние на "уничтожен"
+            }
+        }
+
+        public bool IsHitByBullet(Bullet bullet)
+        {
+            bool isHit = bullet.X >= X && bullet.X <= X + 1 &&
+                         bullet.Y >= Y && bullet.Y <= Y + 1;
+
+            if (isHit)
+            {
+                TakeDamage(); // Если танк был поражен, вызываем метод повреждения
+            }
+
+            return isHit;
+        }
+
         public virtual void Draw(Renderer renderer)
         {
+            if (IsDestroyed)
+            {
+                renderer.SetPixel(X, Y, '✖', 2); // Отображаем символ "X" на позиции танка
+                return;
+            }
+
             char[][] tankRepresentation = TankRepresentations[CurrentDirection];
             for (int i = 0; i < tankRepresentation.Length; i++)
             {

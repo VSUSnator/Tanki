@@ -13,51 +13,71 @@ namespace Tanki
         private GameState gameState;
         private Renderer renderer;
         private CancellationTokenSource cancellationTokenSource;
-        private DateTime lastInputTime;
-        private TimeSpan inputTimeout;
-        private Stopwatch stopwatch; // Добавлен для отслеживания времени
+        private Stopwatch stopwatch;
+
+        private readonly Dictionary<ConsoleKey, Action> keyActions;
 
         public Game()
         {
             string mapFilePath = "C:\\Новая папка\\Tanki-Main\\Tanki\\Tanki\\Tanki\\Map\\map.txt";
             gameState = new GameState(mapFilePath);
+            renderer = new Renderer(new ConsoleColor[] { ConsoleColor.White, ConsoleColor.Red, ConsoleColor.Green, ConsoleColor.Blue });
 
-            ConsoleColor[] colors = { ConsoleColor.White, ConsoleColor.Red, ConsoleColor.Green, ConsoleColor.Blue };
-            renderer = new Renderer(colors);
+            stopwatch = new Stopwatch();
 
-            lastInputTime = DateTime.Now;
-            inputTimeout = TimeSpan.FromMilliseconds(10); // Меньшая задержка для ввода
-            stopwatch = new Stopwatch(); // Инициализируем Stopwatch
-            cancellationTokenSource = new CancellationTokenSource();
+            keyActions = new Dictionary<ConsoleKey, Action>
+            {
+                { ConsoleKey.W, () => MovePlayerTank(Direction.Up) },
+                { ConsoleKey.S, () => MovePlayerTank(Direction.Down) },
+                { ConsoleKey.A, () => MovePlayerTank(Direction.Left) },
+                { ConsoleKey.D, () => MovePlayerTank(Direction.Right) },
+                { ConsoleKey.Spacebar, () => Shoot() },
+                { ConsoleKey.Escape, EndGame }
+            };
         }
 
         public void Start()
         {
             cancellationTokenSource = new CancellationTokenSource();
             StartGame();
-            Task inputTask = Task.Run(() => ProcessInputAsync(cancellationTokenSource.Token));
 
-            stopwatch.Start(); // Запускаем таймер
+            Task inputTask = Task.Run(() => ProcessInputAsync(cancellationTokenSource.Token));
+            stopwatch.Start();
 
             while (!cancellationTokenSource.Token.IsCancellationRequested)
             {
                 UpdateGame();
-                Thread.Sleep(10); // Увеличенная частота обновления
+                Thread.Sleep(10);
             }
 
             EndGame();
-            // Ждем завершения задачи обработки ввода
             inputTask.Wait();
         }
 
         private void UpdateGame()
         {
-            TimeSpan elapsedTime = stopwatch.Elapsed; // Получаем прошедшее время
-            stopwatch.Restart(); // Перезапускаем таймер для следующего обновления
+            TimeSpan elapsedTime = stopwatch.Elapsed;
+            stopwatch.Restart();
 
-            gameState.Update(elapsedTime); // Передаем elapsedTime в метод Update
-            renderer.Draw(gameState); // Отрисовываем всё на экране
+            gameState.Update(elapsedTime);
+
+            // Проверяем, уничтожен ли танк игрока
+            if (gameState.PlayerTank.IsDestroyed)
+            {
+                EndGameWithLoss();
+                return; // Выход из метода, чтобы не продолжать обновления
+            }
+
+            // Проверяем, остались ли враги
+            if (gameState.AreAllEnemiesDefeated())
+            {
+                EndGameWithVictory();
+                return; // Выход из метода, чтобы не продолжать обновления
+            }
+
+            renderer.Draw(gameState);
         }
+
 
         private void StartGame()
         {
@@ -72,6 +92,20 @@ namespace Tanki
             Console.WriteLine("Игра окончена! Спасибо за игру.");
         }
 
+        private void EndGameWithLoss()
+        {
+            cancellationTokenSource.Cancel();
+            gameState.EndGame();
+            Console.WriteLine("Ваш танк уничтожен! Игра окончена! Спасибо за игру.");
+        }
+
+        private void EndGameWithVictory()
+        {
+            cancellationTokenSource.Cancel();
+            gameState.EndGame();
+            Console.WriteLine("Все враги уничтожены! Игра окончена! Спасибо за игру.");
+        }
+
         private async Task ProcessInputAsync(CancellationToken cancellationToken)
         {
             try
@@ -81,10 +115,12 @@ namespace Tanki
                     if (Console.KeyAvailable)
                     {
                         ConsoleKeyInfo key = Console.ReadKey(true);
-                        HandleKeyPress(key.Key); // Обработка ввода сразу
-                        lastInputTime = DateTime.Now;
+                        if (keyActions.TryGetValue(key.Key, out var action))
+                        {
+                            action.Invoke();
+                        }
                     }
-                    await Task.Delay(10, cancellationToken); // Уменьшенная задержка для более быстрого ввода
+                    await Task.Delay(10, cancellationToken);
                 }
             }
             catch (OperationCanceledException)
@@ -97,36 +133,33 @@ namespace Tanki
             }
         }
 
-        public void HandleKeyPress(ConsoleKey key)
+        private void MovePlayerTank(Direction direction)
         {
-            switch (key)
+            gameState.PlayerTank.ChangeDirection(direction);
+
+            switch (direction)
             {
-                case ConsoleKey.W:
-                    gameState.PlayerTank.ChangeDirection(Direction.Up);
-                    gameState.PlayerTank.Move(0, -1); // Движение вверх
+                case Direction.Up:
+                    gameState.PlayerTank.Move(0, -1);
                     break;
-                case ConsoleKey.S:
-                    gameState.PlayerTank.ChangeDirection(Direction.Down);
-                    gameState.PlayerTank.Move(0, 1); // Движение вниз
+                case Direction.Down:
+                    gameState.PlayerTank.Move(0, 1);
                     break;
-                case ConsoleKey.A:
-                    gameState.PlayerTank.ChangeDirection(Direction.Left);
-                    gameState.PlayerTank.Move(-1, 0); // Движение влево
+                case Direction.Left:
+                    gameState.PlayerTank.Move(-1, 0);
                     break;
-                case ConsoleKey.D:
-                    gameState.PlayerTank.ChangeDirection(Direction.Right);
-                    gameState.PlayerTank.Move(1, 0); // Движение вправо
+                case Direction.Right:
+                    gameState.PlayerTank.Move(1, 0);
                     break;
-                case ConsoleKey.Spacebar:
-                    Bullet bullet = gameState.PlayerTank.Shoot(); // Стрельба
-                    if (bullet != null) // Проверяем, что пуля не null
-                    {
-                        gameState.Bullets.Add(bullet); // Добавление снаряда в список
-                    }
-                    break;
-                case ConsoleKey.Escape:
-                    EndGame(); // Завершение игры
-                    break;
+            }
+        }
+
+        private void Shoot()
+        {
+            Bullet bullet = gameState.PlayerTank.Shoot();
+            if (bullet != null)
+            {
+                gameState.Bullets.Add(bullet);
             }
         }
     }
