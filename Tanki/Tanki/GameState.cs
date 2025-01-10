@@ -30,11 +30,13 @@ namespace Tanki
             {
                 (12, 19), // Первый враг
                 (12, 23), // Второй враг
-                (14, 14)  // Третий враг, добавленный здесь
+                (14, 14), // Третий враг, добавленный здесь
+                (22, 23), // Второй враг
+                (14, 23)  // Третий враг, добавленный здесь
             };
             random = new Random();
 
-            InitializeEnemies(4); // Количество врагов
+            InitializeEnemies(2); // Количество врагов
             moveDelay = new ActionDelay(TimeSpan.FromMilliseconds(300));
             shootDelay = new ActionDelay(TimeSpan.FromMilliseconds(900));
         }

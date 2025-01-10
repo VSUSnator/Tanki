@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace Tanki.Map
 {
-    public class mapLoader
+    public class MapLoader
     {
         private readonly List<string> mapFiles;
         private int currentMapIndex;
 
-        public mapLoader(List<string> mapFiles)
+        public MapLoader(List<string> mapFiles)
         {
             this.mapFiles = mapFiles;
             currentMapIndex = 0;

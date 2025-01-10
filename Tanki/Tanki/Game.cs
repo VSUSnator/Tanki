@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Tanki.Map;
@@ -14,15 +15,37 @@ namespace Tanki
         private Renderer renderer;
         private CancellationTokenSource cancellationTokenSource;
         private Stopwatch stopwatch;
+        private MapLoader mapLoader; // Объявление поля
 
         private readonly Dictionary<ConsoleKey, Action> keyActions;
 
         public Game()
         {
-            string mapFilePath = "C:\\Новая папка\\Tanki-Main\\Tanki\\Tanki\\Tanki\\Map\\map.txt";
-            gameState = new GameState(mapFilePath);
-            renderer = new Renderer(new ConsoleColor[] { ConsoleColor.White, ConsoleColor.Red, ConsoleColor.Green, ConsoleColor.Blue });
+            string mapDirectory = @"C:\Новая папка\Tanki-Main\Tanki\Tanki\Tanki\Map";
+            Console.WriteLine($"Путь к директории карт: {mapDirectory}");
 
+            if (!Directory.Exists(mapDirectory))
+            {
+                Console.WriteLine($"Директория с картами не найдена: {mapDirectory}");
+                EndGame(); // Завершение игры, если директория не существует
+                return; // Выход из конструктора
+            }
+
+            // Получение всех файлов карт из директории
+            List<string> mapFiles = new List<string>(Directory.GetFiles(mapDirectory, "*.txt"));
+            Console.WriteLine($"Найдено файлов карт: {mapFiles.Count}");
+
+            // Проверка, найдены ли карты
+            if (mapFiles.Count == 0)
+            {
+                Console.WriteLine("Нет доступных карт для игры.");
+                EndGame(); // Завершение игры, если карты не найдены
+                return; // Выход из конструктора
+            }
+
+            mapLoader = new MapLoader(mapFiles);
+            LoadNewMap(); // Загрузка первой карты
+            renderer = new Renderer(new ConsoleColor[] { ConsoleColor.White, ConsoleColor.Red, ConsoleColor.Green, ConsoleColor.Blue });
             stopwatch = new Stopwatch();
 
             keyActions = new Dictionary<ConsoleKey, Action>
@@ -34,6 +57,37 @@ namespace Tanki
                 { ConsoleKey.Spacebar, () => Shoot() },
                 { ConsoleKey.Escape, EndGame }
             };
+        }
+
+        private void LoadNewMap()
+        {
+            try
+            {
+                string mapFilePath = mapLoader.GetNextMap();
+
+                if (mapFilePath != null)
+                {
+                    if (File.Exists(mapFilePath)) // Проверка на существование файла
+                    {
+                        gameState = new GameState(mapFilePath);
+                        StartGame(); // Перезапустить игру с новой картой
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Файл карты не найден: {mapFilePath}");
+                        EndGame(); // Завершение игры при отсутствии файла
+                    }
+                }
+                else
+                {
+                    EndGameWithVictory(); // Если карт больше нет, заканчиваем игру с победой
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при загрузке карты: {ex.Message}");
+                EndGame(); // Завершение игры в случае ошибки
+            }
         }
 
         public void Start()
@@ -71,13 +125,12 @@ namespace Tanki
             // Проверяем, остались ли враги
             if (gameState.AreAllEnemiesDefeated())
             {
-                EndGameWithVictory();
+                LoadNewMap(); // Загружаем новую карту
                 return; // Выход из метода, чтобы не продолжать обновления
             }
 
             renderer.Draw(gameState);
         }
-
 
         private void StartGame()
         {
@@ -95,7 +148,10 @@ namespace Tanki
         private void EndGameWithLoss()
         {
             cancellationTokenSource.Cancel();
-            gameState.EndGame();
+            if (gameState != null)
+            {
+                gameState.EndGame();
+            }
             Console.WriteLine("Ваш танк уничтожен! Игра окончена! Спасибо за игру.");
         }
 
@@ -164,3 +220,39 @@ namespace Tanki
         }
     }
 }
+
+
+//public Game()
+//{
+//    // Получаем базовый путь к директории, в которой находится исполняемый файл
+//    string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+//    // Формируем путь к директории с картами
+//    string mapDirectory = Path.Combine(baseDirectory, "Map");
+
+//    Console.WriteLine($"Путь к директории карт: {mapDirectory}");
+
+//    if (!Directory.Exists(mapDirectory))
+//    {
+//        Console.WriteLine($"Директория с картами не найдена: {mapDirectory}");
+//        EndGame(); // Завершение игры, если директория не существует
+//        return; // Выход из конструктора
+//    }
+
+//    // Получение всех файлов карт из директории
+//    List<string> mapFiles = new List<string>(Directory.GetFiles(mapDirectory, "*.txt"));
+//    Console.WriteLine($"Найдено файлов карт: {mapFiles.Count}");
+
+//    // Проверка, найдены ли карты
+//    if (mapFiles.Count == 0)
+//    {
+//        Console.WriteLine("Нет доступных карт для игры.");
+//        EndGame(); // Завершение игры, если карты не найдены
+//        return; // Выход из конструктора
+//    }
+
+//    mapLoader = new MapLoader(mapFiles);
+//    LoadNewMap(); // Загрузка первой карты
+
+// я хотел выполнить Уровень 2: Помести карту в файл и грузи карты для уровней из файловой системы с помощью System.IO.
+// Но либо из за того что у меня 3 папки с одинаковым именнем либо из за чего то другого у меня код не мог создать правильную  директории с картами
+// Поэтому сделаю примитивный абсолютный путь
