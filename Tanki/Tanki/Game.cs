@@ -2,8 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Linq;
 using Tanki.Map;
 using static Tanki.Tank;
 
@@ -13,7 +12,6 @@ namespace Tanki
     {
         private GameState gameState;
         private Renderer renderer;
-        private CancellationTokenSource cancellationTokenSource;
         private Stopwatch stopwatch;
         private MapLoader mapLoader; // Объявление поля
 
@@ -21,21 +19,13 @@ namespace Tanki
 
         public Game()
         {
-            string mapDirectory = @"C:\Новая папка\Tanki-Main\Tanki\Tanki\Tanki\Map";
+            // Определяем путь к директории карт
+            string mapDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..\\..\\Map");
             Console.WriteLine($"Путь к директории карт: {mapDirectory}");
 
-            if (!Directory.Exists(mapDirectory))
-            {
-                Console.WriteLine($"Директория с картами не найдена: {mapDirectory}");
-                EndGame(); // Завершение игры, если директория не существует
-                return; // Выход из конструктора
-            }
-
             // Получение всех файлов карт из директории
-            List<string> mapFiles = new List<string>(Directory.GetFiles(mapDirectory, "*.txt"));
-            Console.WriteLine($"Найдено файлов карт: {mapFiles.Count}");
+            List<string> mapFiles = Directory.GetFiles(mapDirectory, "*.txt").ToList();
 
-            // Проверка, найдены ли карты
             if (mapFiles.Count == 0)
             {
                 Console.WriteLine("Нет доступных карт для игры.");
@@ -92,24 +82,32 @@ namespace Tanki
 
         public void Start()
         {
-            cancellationTokenSource = new CancellationTokenSource();
             StartGame();
-
-            Task inputTask = Task.Run(() => ProcessInputAsync(cancellationTokenSource.Token));
             stopwatch.Start();
 
-            while (!cancellationTokenSource.Token.IsCancellationRequested)
+            while (true)
             {
-                UpdateGame();
-                Thread.Sleep(10);
-            }
+                if (Console.KeyAvailable)
+                {
+                    ConsoleKeyInfo key = Console.ReadKey(true);
+                    if (keyActions.TryGetValue(key.Key, out var action))
+                    {
+                        action.Invoke();
+                    }
+                }
 
-            EndGame();
-            inputTask.Wait();
+                UpdateGame();
+                System.Threading.Thread.Sleep(10); // Задержка для уменьшения нагрузки на процессор
+            }
         }
 
         private void UpdateGame()
         {
+            if (gameState == null)
+            {
+                return;
+            }
+
             TimeSpan elapsedTime = stopwatch.Elapsed;
             stopwatch.Restart();
 
@@ -140,53 +138,20 @@ namespace Tanki
 
         private void EndGame()
         {
-            cancellationTokenSource.Cancel();
-            gameState.EndGame();
+            gameState?.EndGame();
             Console.WriteLine("Игра окончена! Спасибо за игру.");
         }
 
         private void EndGameWithLoss()
         {
-            cancellationTokenSource.Cancel();
-            if (gameState != null)
-            {
-                gameState.EndGame();
-            }
+            gameState?.EndGame();
             Console.WriteLine("Ваш танк уничтожен! Игра окончена! Спасибо за игру.");
         }
 
         private void EndGameWithVictory()
         {
-            cancellationTokenSource.Cancel();
-            gameState.EndGame();
+            gameState?.EndGame();
             Console.WriteLine("Все враги уничтожены! Игра окончена! Спасибо за игру.");
-        }
-
-        private async Task ProcessInputAsync(CancellationToken cancellationToken)
-        {
-            try
-            {
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    if (Console.KeyAvailable)
-                    {
-                        ConsoleKeyInfo key = Console.ReadKey(true);
-                        if (keyActions.TryGetValue(key.Key, out var action))
-                        {
-                            action.Invoke();
-                        }
-                    }
-                    await Task.Delay(10, cancellationToken);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // Задача была отменена
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Ошибка ввода: {ex.Message}");
-            }
         }
 
         private void MovePlayerTank(Direction direction)
@@ -220,39 +185,3 @@ namespace Tanki
         }
     }
 }
-
-
-//public Game()
-//{
-//    // Получаем базовый путь к директории, в которой находится исполняемый файл
-//    string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-//    // Формируем путь к директории с картами
-//    string mapDirectory = Path.Combine(baseDirectory, "Map");
-
-//    Console.WriteLine($"Путь к директории карт: {mapDirectory}");
-
-//    if (!Directory.Exists(mapDirectory))
-//    {
-//        Console.WriteLine($"Директория с картами не найдена: {mapDirectory}");
-//        EndGame(); // Завершение игры, если директория не существует
-//        return; // Выход из конструктора
-//    }
-
-//    // Получение всех файлов карт из директории
-//    List<string> mapFiles = new List<string>(Directory.GetFiles(mapDirectory, "*.txt"));
-//    Console.WriteLine($"Найдено файлов карт: {mapFiles.Count}");
-
-//    // Проверка, найдены ли карты
-//    if (mapFiles.Count == 0)
-//    {
-//        Console.WriteLine("Нет доступных карт для игры.");
-//        EndGame(); // Завершение игры, если карты не найдены
-//        return; // Выход из конструктора
-//    }
-
-//    mapLoader = new MapLoader(mapFiles);
-//    LoadNewMap(); // Загрузка первой карты
-
-// я хотел выполнить Уровень 2: Помести карту в файл и грузи карты для уровней из файловой системы с помощью System.IO.
-// Но либо из за того что у меня 3 папки с одинаковым именнем либо из за чего то другого у меня код не мог создать правильную  директории с картами
-// Поэтому сделаю примитивный абсолютный путь

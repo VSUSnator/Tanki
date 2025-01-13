@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using Tanki.Map;
+﻿using Tanki.Map;
 
 namespace Tanki
 {
